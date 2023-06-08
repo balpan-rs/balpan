@@ -183,7 +183,7 @@ pub fn merge_toml_values(left: toml::Value, right: toml::Value, merge_depth: usi
             toml_array_value(merge_depth, left_items, right_items)
         }
         (Value::Table(left_map), Value::Table(right_map)) => {
-            toml_table(merge_depth, left_map, right_map)
+            toml_table_value(merge_depth, left_map, right_map)
         }
         // Catch everything else we didn't handle, and use the right value
         (_, value) => value,
@@ -222,7 +222,7 @@ fn toml_array_value(
     Value::Array(left_items)
 }
 
-fn toml_table(
+fn toml_table_value(
     merge_depth: usize,
     mut left_map: Map<String, Value>,
     right_map: Map<String, Value>,
