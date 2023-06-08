@@ -111,7 +111,6 @@ enum StrategyType {
 }
 
 fn get_dir(target: StrategyType) -> PathBuf {
-
     let target_str = match target {
         StrategyType::Config => "config",
         StrategyType::Cache => "cache",
@@ -122,7 +121,8 @@ fn get_dir(target: StrategyType) -> PathBuf {
         return PathBuf::from(dir);
     }
 
-    let strategy = choose_base_strategy().unwrap_or_else(|_| panic!("Unable to find the {target_str} directory strategy!"));
+    let strategy = choose_base_strategy()
+        .unwrap_or_else(|_| panic!("Unable to find the {target_str} directory strategy!"));
     let mut path = match target {
         StrategyType::Config => strategy.config_dir(),
         StrategyType::Cache => strategy.cache_dir(),
