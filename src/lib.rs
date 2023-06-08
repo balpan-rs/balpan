@@ -4,6 +4,7 @@ pub mod utils;
 
 use etcetera::base_strategy::{choose_base_strategy, BaseStrategy};
 use std::path::{Path, PathBuf};
+use toml::{map::Map, Value};
 
 static RUNTIME_DIRS: once_cell::sync::Lazy<Vec<PathBuf>> =
     once_cell::sync::Lazy::new(prioritize_runtime_dirs);
@@ -82,10 +83,10 @@ fn find_runtime_file(rel_path: &Path) -> Option<PathBuf> {
     RUNTIME_DIRS.iter().find_map(|rt_dir| {
         let path = rt_dir.join(rel_path);
         if path.exists() {
-            Some(path)
-        } else {
-            None
+            return Some(path);
         }
+
+        None
     })
 }
 
@@ -104,20 +105,40 @@ pub fn runtime_file(rel_path: &Path) -> PathBuf {
     })
 }
 
-pub fn config_dir() -> PathBuf {
-    // TODO: allow env var override
-    let strategy = choose_base_strategy().expect("Unable to find the config directory!");
-    let mut path = strategy.config_dir();
+enum StrategyType {
+    Config,
+    Cache,
+}
+
+fn get_dir(target: StrategyType) -> PathBuf {
+
+    let target_str = match target {
+        StrategyType::Config => "config",
+        StrategyType::Cache => "cache",
+    };
+
+    // Check if the directory override environment variable is set
+    if let Ok(dir) = std::env::var(format!("BALPAN_{}_DIR", target_str.to_uppercase())) {
+        return PathBuf::from(dir);
+    }
+
+    let strategy = choose_base_strategy().expect(format!("Unable to find the {target_str} directory strategy!").as_str());
+    let mut path = match target {
+        StrategyType::Config => strategy.config_dir(),
+        StrategyType::Cache => strategy.cache_dir(),
+    };
+
     path.push("balpan");
+
     path
 }
 
+pub fn config_dir() -> PathBuf {
+    get_dir(StrategyType::Config)
+}
+
 pub fn cache_dir() -> PathBuf {
-    // TODO: allow env var override
-    let strategy = choose_base_strategy().expect("Unable to find the config directory!");
-    let mut path = strategy.cache_dir();
-    path.push("balpan");
-    path
+    get_dir(StrategyType::Cache)
 }
 
 pub fn config_file() -> PathBuf {
@@ -139,6 +160,10 @@ pub fn log_file() -> PathBuf {
     cache_dir().join("balpan.log")
 }
 
+fn get_name(v: &Value) -> Option<&str> {
+    v.get("name").and_then(Value::as_str)
+}
+
 /// Merge two TOML documents, merging values from `right` onto `left`
 ///
 /// When an array exists in both `left` and `right`, `right`'s array is
@@ -153,59 +178,72 @@ pub fn log_file() -> PathBuf {
 /// where one usually wants to override or add to the array instead of
 /// replacing it altogether.
 pub fn merge_toml_values(left: toml::Value, right: toml::Value, merge_depth: usize) -> toml::Value {
-    use toml::Value;
-
-    fn get_name(v: &Value) -> Option<&str> {
-        v.get("name").and_then(Value::as_str)
-    }
-
     match (left, right) {
-        (Value::Array(mut left_items), Value::Array(right_items)) => {
-            // The top-level arrays should be merged but nested arrays should
-            // act as overrides. For the `languages.toml` config, this means
-            // that you can specify a sub-set of languages in an overriding
-            // `languages.toml` but that nested arrays like Language Server
-            // arguments are replaced instead of merged.
-            if merge_depth > 0 {
-                left_items.reserve(right_items.len());
-                for rvalue in right_items {
-                    let lvalue = get_name(&rvalue)
-                        .and_then(|rname| {
-                            left_items.iter().position(|v| get_name(v) == Some(rname))
-                        })
-                        .map(|lpos| left_items.remove(lpos));
-                    let mvalue = match lvalue {
-                        Some(lvalue) => merge_toml_values(lvalue, rvalue, merge_depth - 1),
-                        None => rvalue,
-                    };
-                    left_items.push(mvalue);
-                }
-                Value::Array(left_items)
-            } else {
-                Value::Array(right_items)
-            }
+        (Value::Array(left_items), Value::Array(right_items)) => {
+            toml_array_value(merge_depth, left_items, right_items)
         }
-        (Value::Table(mut left_map), Value::Table(right_map)) => {
-            if merge_depth > 0 {
-                for (rname, rvalue) in right_map {
-                    match left_map.remove(&rname) {
-                        Some(lvalue) => {
-                            let merged_value = merge_toml_values(lvalue, rvalue, merge_depth - 1);
-                            left_map.insert(rname, merged_value);
-                        }
-                        None => {
-                            left_map.insert(rname, rvalue);
-                        }
-                    }
-                }
-                Value::Table(left_map)
-            } else {
-                Value::Table(right_map)
-            }
+        (Value::Table(left_map), Value::Table(right_map)) => {
+            toml_table(merge_depth, left_map, right_map)
         }
         // Catch everything else we didn't handle, and use the right value
         (_, value) => value,
     }
+}
+
+fn toml_array_value(
+    merge_depth: usize,
+    mut left_items: Vec<Value>,
+    right_items: Vec<Value>,
+) -> toml::Value {
+    // The top-level arrays should be merged but nested arrays should
+    // act as overrides. For the `languages.toml` config, this means
+    // that you can specify a sub-set of languages in an overriding
+    // `languages.toml` but that nested arrays like Language Server
+    // arguments are replaced instead of merged.
+    if merge_depth == 0 {
+        return Value::Array(right_items);
+    }
+
+    left_items.reserve(right_items.len());
+
+    for r_val in right_items {
+        let l_val = get_name(&r_val)
+            .and_then(|r_name| left_items.iter().position(|v| get_name(v) == Some(r_name)))
+            .map(|l_pos| left_items.remove(l_pos));
+
+        let m_val = match l_val {
+            Some(l) => merge_toml_values(l, r_val, merge_depth - 1),
+            None => r_val,
+        };
+
+        left_items.push(m_val);
+    }
+
+    Value::Array(left_items)
+}
+
+fn toml_table(
+    merge_depth: usize,
+    mut left_map: Map<String, Value>,
+    right_map: Map<String, Value>,
+) -> toml::Value {
+    if merge_depth == 0 {
+        return Value::Table(right_map);
+    }
+
+    for (r_name, r_val) in right_map {
+        match left_map.remove(&r_name) {
+            Some(l_val) => {
+                let merged_val = merge_toml_values(l_val, r_val, merge_depth - 1);
+                left_map.insert(r_name, merged_val);
+            }
+            None => {
+                left_map.insert(r_name, r_val);
+            }
+        }
+    }
+
+    Value::Table(left_map)
 }
 
 /// Finds the current workspace folder.
@@ -282,6 +320,39 @@ mod merge_toml_tests {
         let user: Value = toml::from_str(USER).unwrap();
 
         let merged = merge_toml_values(base, user, 3);
+        let languages = merged.get("language").unwrap().as_array().unwrap();
+        let ts = languages
+            .iter()
+            .find(|v| v.get("name").unwrap().as_str().unwrap() == "typescript")
+            .unwrap();
+        assert_eq!(
+            ts.get("language-server")
+                .unwrap()
+                .get("args")
+                .unwrap()
+                .as_array()
+                .unwrap(),
+            &vec![Value::String("lsp".into())]
+        )
+    }
+
+    #[test]
+    fn allow_env_variable_override() {
+        const USER: &str = r#"
+        [[language]]
+        name = "typescript"
+        language-server = { command = "deno", args = ["lsp"] }
+        "#;
+
+        let base = include_bytes!("../languages.toml");
+        let base = str::from_utf8(base).expect("Couldn't parse built-in languages config");
+        let base: Value = toml::from_str(base).expect("Couldn't parse built-in languages config");
+        let user: Value = toml::from_str(USER).unwrap();
+
+        std::env::set_var("BALPAN_CONFIG_DIR", "/tmp");
+        let merged = merge_toml_values(base, user, 3);
+        std::env::remove_var("BALPAN_CONFIG_DIR");
+
         let languages = merged.get("language").unwrap().as_array().unwrap();
         let ts = languages
             .iter()

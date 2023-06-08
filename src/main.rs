@@ -1,7 +1,7 @@
 use anyhow::Result;
 
-use balpan::utils::{get_git_repo_root, list_available_files};
 use balpan::grammar::fetch_grammars;
+use balpan::utils::{get_git_repo_root, list_available_files};
 
 fn main() -> Result<()> {
     if let Some(repo_root) = get_git_repo_root() {
