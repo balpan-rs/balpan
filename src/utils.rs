@@ -9,7 +9,7 @@ use ignore::WalkBuilder;
 pub fn get_git_repo_root() -> Option<String> {
     let current_dir = env::current_dir().ok()?;
 
-    let repo = Repository::discover(&current_dir).ok()?;
+    let repo = Repository::discover(current_dir).ok()?;
     let repo_root = repo.workdir()?.to_string_lossy().to_string();
 
     Some(repo_root)
