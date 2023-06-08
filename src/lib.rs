@@ -122,7 +122,7 @@ fn get_dir(target: StrategyType) -> PathBuf {
         return PathBuf::from(dir);
     }
 
-    let strategy = choose_base_strategy().expect(format!("Unable to find the {target_str} directory strategy!").as_str());
+    let strategy = choose_base_strategy().unwrap_or_else(|_| panic!("Unable to find the {target_str} directory strategy!"));
     let mut path = match target {
         StrategyType::Config => strategy.config_dir(),
         StrategyType::Cache => strategy.cache_dir(),
