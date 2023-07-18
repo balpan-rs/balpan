@@ -1,3 +1,5 @@
+// This is referred from the helix codebase: 
+// https://github.com/helix-editor/helix/blob/master/helix-loader/src/lib.rs 
 pub mod config;
 pub mod grammar;
 pub mod utils;

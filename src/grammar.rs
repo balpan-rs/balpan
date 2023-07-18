@@ -1,3 +1,5 @@
+// This is referred from the helix codebase: 
+// https://github.com/helix-editor/helix/blob/master/helix-loader/src/grammar.rs
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
