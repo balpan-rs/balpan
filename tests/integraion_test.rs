@@ -1,6 +1,6 @@
 #[cfg(test)]
-mod test {
-    use crate::config::*;  // load specific source code
+mod integration_test {
+    use balpan::config::*;  // load specific source code
 
     // placeholder test
     #[test]
