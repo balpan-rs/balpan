@@ -3,6 +3,7 @@
 pub mod config;
 pub mod grammar;
 pub mod utils;
+pub mod tree_sitter_extended;
 
 use etcetera::base_strategy::{choose_base_strategy, BaseStrategy};
 use std::path::{Path, PathBuf};
