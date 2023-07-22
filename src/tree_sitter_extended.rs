@@ -10,26 +10,18 @@ impl MembershipCheck for Point {
         let start_point = range.start_point;
         let end_point = range.end_point;
 
-        if self.row < start_point.row {
-            false
-        } else if self.row == start_point.row {
-            if self.column < start_point.column {
-                false
-            } else {
-                true
-            }
-        } else {
-            if self.row < end_point.row {
-                true
-            } else if self.row == end_point.row {
-                if self.column > end_point.column {
-                    false
-                } else {
-                    true
-                }
-            } else {
-                false
-            }
+        if self.row < start_point.row || self.row > end_point.row {
+            return false;
         }
+
+        if self.row == start_point.row && self.column < start_point.column {
+            return false;
+        }
+
+        if self.row == end_point.row && self.column > end_point.column {
+            return false;
+        }
+
+        true
     }
 }
