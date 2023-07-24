@@ -23,6 +23,7 @@ mod tree_sitter_extended_tests {
             }
         };
 
+        assert!(cursor.is_before(function_scope));
         assert!(!cursor.is_member_of(function_scope));
     }
 
@@ -74,8 +75,10 @@ mod tree_sitter_extended_tests {
             }
         };
 
+        assert!(!cursor_with_pointing_start.is_before(function_scope));
         assert!(cursor_with_pointing_start.is_member_of(function_scope));
         assert!(cursor_with_pointing_end.is_member_of(function_scope));
+        assert!(!cursor_with_pointing_end.is_after(function_scope));
     }
 
     #[test]
@@ -103,7 +106,9 @@ mod tree_sitter_extended_tests {
             }
         };
 
+        assert!(left_of_start_point.is_before(function_scope));
         assert!(!left_of_start_point.is_member_of(function_scope));
         assert!(!right_of_end_point.is_member_of(function_scope));
+        assert!(right_of_end_point.is_after(function_scope));
     }
 }
