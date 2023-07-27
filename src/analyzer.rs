@@ -4,17 +4,17 @@ use tree_sitter::{Tree, Parser, Node};
 
 use crate::grammar::get_language;
 
-pub struct Scanner {
+pub struct Analyzer {
     pub source_code: String
 }
 
 pub trait Traversable<'a, 'b> {
-    fn scan(&'b self);
+    fn analyze(&'b self);
     fn get_syntax_tree(&'b self) -> Tree;
     fn get_top_level_nodes(&'a self, tree: &'b Tree) -> Vec<Node<'b>>;
 }
 
-impl<'a, 'b> Traversable<'a, 'b> for Scanner {
+impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
     fn get_syntax_tree(&'b self) -> Tree {
         let parser = RefCell::new(Parser::new());
         let language = get_language("rust").unwrap();
@@ -34,7 +34,7 @@ impl<'a, 'b> Traversable<'a, 'b> for Scanner {
         }
     } 
 
-    fn scan(&'b self) {
+    fn analyze(&'b self) {
         let tree = self.get_syntax_tree();
         let nodes = self.get_top_level_nodes(
             &tree
