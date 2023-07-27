@@ -2,7 +2,7 @@
 // https://github.com/helix-editor/helix/blob/master/helix-loader/src/lib.rs 
 pub mod config;
 pub mod grammar;
-pub mod scanner;
+pub mod analyzer;
 pub mod utils;
 pub mod tree_sitter_extended;
 

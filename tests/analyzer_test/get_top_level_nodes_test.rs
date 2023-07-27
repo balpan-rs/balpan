@@ -1,18 +1,18 @@
 #[cfg(test)]
 mod get_top_level_nodes_test {
-    use balpan::scanner::{Scanner,Traversable};
+    use balpan::analyzer::{Analyzer,Traversable};
     use balpan::grammar::{fetch_grammars, build_grammars};
 
     fn assert_top_level_node_kinds(source_code: &str, expected: Vec<&str>) {
         fetch_grammars();
         build_grammars(None);
 
-        let scanner = Scanner { 
+        let analyzer = Analyzer { 
             source_code: source_code.to_string() 
         };
 
-        let tree = scanner.get_syntax_tree();
-        let nodes = scanner.get_top_level_nodes(&tree);
+        let tree = analyzer.get_syntax_tree();
+        let nodes = analyzer.get_top_level_nodes(&tree);
 
         let result: Vec<&str> = nodes
             .iter()
