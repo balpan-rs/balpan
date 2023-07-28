@@ -1,4 +1,4 @@
-use tree_sitter::{Point, Range};
+use tree_sitter::{Point, Range, Node};
 
 
 pub trait MembershipCheck {
@@ -46,5 +46,21 @@ impl MembershipCheck for Point {
         }
 
         true
+    }
+}
+
+pub trait RangeFactory {
+    fn from_node(node: Node) -> Range;
+}
+
+impl RangeFactory for Range {
+    #[inline]
+    fn from_node(node: Node) -> Range {
+        Range {
+            start_byte: node.start_byte(),
+            end_byte: node.end_byte(),
+            start_point: node.start_position(),
+            end_point: node.end_position(),
+        }
     }
 }
