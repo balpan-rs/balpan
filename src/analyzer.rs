@@ -9,12 +9,32 @@ pub struct Analyzer {
 }
 
 pub trait Traversable<'a, 'b> {
+    fn get_annotation_whitelist(&self) -> Vec<&str>;
     fn analyze(&'b self);
     fn get_syntax_tree(&'b self) -> Tree;
     fn get_top_level_nodes(&'a self, tree: &'b Tree) -> Vec<Node<'b>>;
 }
 
 impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
+    fn get_annotation_whitelist(&self) -> Vec<&str> {
+        let language = "rust";
+
+        match language {
+            "rust" => vec![
+                "attribute_item",
+                "mod_item",
+                "enum_item",
+                "type_item",
+                "impl_item",
+                "function_item",
+                "struct_item",
+                "trait_item",
+                "macro_definition",
+            ],
+            _ => vec![],
+        }
+    }
+
     fn get_syntax_tree(&'b self) -> Tree {
         let parser = RefCell::new(Parser::new());
         let language = get_language("rust").unwrap();
