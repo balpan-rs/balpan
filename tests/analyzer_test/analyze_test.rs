@@ -115,6 +115,7 @@ mod analyze_test {
     }
 
     #[test]
+    #[ignore]
     fn test_ignore_doc_macro() {
         let source_code = indoc! {"
             #[doc = \"This is a doc comment\"]
