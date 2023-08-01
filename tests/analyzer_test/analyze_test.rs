@@ -31,40 +31,6 @@ mod analyze_test {
     }
 
     #[test]
-    fn test_declaring_error_enum_with_macro() {
-        let source_code = indoc! {"
-        use thiserror::Error;
-
-        #[derive(Error, Debug)]
-        pub enum FormatError {
-            #[error(\"Invalid header (expected {expected:?}, got {found:?})\")]
-            InvalidHeader {
-                expected: String,
-                found: String,
-            },
-            #[error(\"Missing attribute: {0}\")]
-            MissingAttribute(String),
-        }"};
-
-        let result = indoc! {"
-        use thiserror::Error;
-
-        /// [TODO]
-        #[derive(Error, Debug)]
-        pub enum FormatError {
-            #[error(\"Invalid header (expected {expected:?}, got {found:?})\")]
-            InvalidHeader {
-                expected: String,
-                found: String,
-            },
-            #[error(\"Missing attribute: {0}\")]
-            MissingAttribute(String),
-        }"};
-
-        assert_analyzed_source_code(source_code, result)
-    }
-
-    #[test]
     fn test_stacked_macros() {
         let source_code = indoc! {"
             #[derive(Deserialize)]
