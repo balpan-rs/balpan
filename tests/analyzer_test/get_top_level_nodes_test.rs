@@ -4,8 +4,8 @@ mod get_top_level_nodes_test {
     use balpan::grammar::{fetch_grammars, build_grammars};
 
     fn assert_top_level_node_kinds(source_code: &str, expected: Vec<&str>) {
-        fetch_grammars();
-        build_grammars(None);
+        fetch_grammars().unwrap();
+        build_grammars(None).unwrap();
 
         let analyzer = Analyzer { 
             source_code: source_code.to_string() 
