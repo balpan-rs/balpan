@@ -16,14 +16,14 @@ mod anyhow_case_test {
         let mut string_vector = vec![];
 
         for line in writer_queue {
-            string_vector.push(*line);
+            string_vector.push(String::from(line));
         }
 
 
         let actual: String = string_vector
-            .iter()
-            .map( |str| { *str } )
-            .collect::<Vec<&str>>()
+            // .iter()
+            // .map( |str| { *str } )
+            // .collect::<Vec<&str>>()
             .join("\n");
 
         assert_eq!(expected, actual);

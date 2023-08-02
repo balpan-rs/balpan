@@ -17,14 +17,14 @@ mod analyze_test {
         let mut string_vector = vec![];
 
         for line in writer_queue {
-            string_vector.push(*line);
+            string_vector.push(String::from(line));
         }
 
 
         let actual: String = string_vector
-            .iter()
-            .map( |str| { *str } )
-            .collect::<Vec<&str>>()
+            // .iter()
+            // .map( |str| { *str } )
+            // .collect::<Vec<String>>()
             .join("\n");
 
         assert_eq!(expected, actual);
@@ -53,7 +53,6 @@ mod analyze_test {
     }
 
     #[test]
-    #[ignore]
     fn test_ignore_todo_test_macro() {
         let source_code = indoc! {"
             #[cfg(test)]
@@ -67,10 +66,12 @@ mod analyze_test {
             }"};
 
         let result = indoc! {"
+            /// [TODO]
             #[cfg(test)]
             mod tests {
                 use super::*;
 
+                /// [TODO]
                 #[test]
                 fn test_foo() {
                     assert_eq!(foo(), 1);
@@ -81,7 +82,6 @@ mod analyze_test {
     }
 
     #[test]
-    #[ignore]
     fn test_ignore_doc_macro() {
         let source_code = indoc! {"
             #[doc = \"This is a doc comment\"]
@@ -90,10 +90,100 @@ mod analyze_test {
             }"};
 
         let result = indoc! {"
+            /// [TODO]
             #[doc = \"This is a doc comment\"]
             fn foo() {
                 println!(\"foo\");
             }"};
+
+        assert_analyzed_source_code(source_code, result)
+    }
+
+    #[test]
+    fn test_trait_and_impl() {
+        let source_code = indoc! { "       
+        pub trait RangeFactory {
+            fn from_node(node: Node) -> Range;
+        }
+
+        impl RangeFactory for Range {
+            #[inline]
+            fn from_node(node: Node) -> Range {
+                Range {
+                    start_byte: node.start_byte(),
+                    end_byte: node.end_byte(),
+                    start_point: node.start_position(),
+                    end_point: node.end_position(),
+                }
+            }
+        }"};
+
+        let result = indoc! { "       
+        /// [TODO]
+        pub trait RangeFactory {
+            fn from_node(node: Node) -> Range;
+        }
+
+        /// [TODO]
+        impl RangeFactory for Range {
+            /// [TODO]
+            #[inline]
+            fn from_node(node: Node) -> Range {
+                Range {
+                    start_byte: node.start_byte(),
+                    end_byte: node.end_byte(),
+                    start_point: node.start_position(),
+                    end_point: node.end_position(),
+                }
+            }
+        }"};
+
+        assert_analyzed_source_code(source_code, result)
+    }
+
+    #[test]
+    fn test_trait_and_impl_with_mod() {
+        let source_code = indoc! { "       
+        mod tree_sitter_extended {
+            pub trait RangeFactory {
+                fn from_node(node: Node) -> Range;
+            }
+
+            impl RangeFactory for Range {
+                #[inline]
+                fn from_node(node: Node) -> Range {
+                    Range {
+                        start_byte: node.start_byte(),
+                        end_byte: node.end_byte(),
+                        start_point: node.start_position(),
+                        end_point: node.end_position(),
+                    }
+                }
+            }
+        }"};
+
+        let result = indoc! { "       
+        /// [TODO]
+        mod tree_sitter_extended {
+            /// [TODO]
+            pub trait RangeFactory {
+                fn from_node(node: Node) -> Range;
+            }
+
+            /// [TODO]
+            impl RangeFactory for Range {
+                /// [TODO]
+                #[inline]
+                fn from_node(node: Node) -> Range {
+                    Range {
+                        start_byte: node.start_byte(),
+                        end_byte: node.end_byte(),
+                        start_point: node.start_position(),
+                        end_point: node.end_position(),
+                    }
+                }
+            }
+        }"};
 
         assert_analyzed_source_code(source_code, result)
     }
