@@ -14,13 +14,31 @@ pub struct Analyzer {
 pub trait Traversable<'a, 'b> {
     fn get_indent_comment_pool(&self) -> Vec<String>;
     fn get_annotation_whitelist(&self) -> Vec<&str>;
+    fn decorator_node_type(&self) -> &str;
     fn analyze(&'b self) -> VecDeque<String>;
     fn get_syntax_tree(&'b self) -> Tree;
     fn get_nested_traversable_symbols(&self) -> Vec<&str>;
     fn get_whitelist_nodes(&'a self, tree: &'b Tree) -> Vec<Node<'b>>;
+    fn top_level_node_type(&self) -> &str;
 }
 
 impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
+    fn top_level_node_type(&self) -> &str {
+        match self.language.as_str() {
+            "rust" => "source_file",
+            "python" => "module",
+            _ => ""
+        }
+    }
+
+    fn decorator_node_type(&self) -> &str {
+        match self.language.as_str() {
+            "rust" => "attribute_item",
+            "python" => "null",
+            _ => "",
+        }
+    }
+
     fn get_annotation_whitelist(&self) -> Vec<&str> {
         let language = self.language.as_str();
 
@@ -36,12 +54,21 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
                 "trait_item",
                 "macro_definition",
             ],
+            "python" => vec![
+                "class_definition",
+                "function_definition",
+                "decorated_definition",
+            ],
             _ => vec![],
         }
     }
 
     fn get_indent_comment_pool(&self) -> Vec<String> {
-        let comment = &String::from("/// [TODO]");
+        let comment = match self.language.as_str() {
+            "rust" => "/// [TODO]",
+            "python" => "# [TODO]",
+            _ => "//"
+        };
 
         vec![
             comment.to_string(),
@@ -62,6 +89,9 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
             "rust" => vec![
                 "mod_item",
                 "impl_item",
+            ],
+            "python" => vec![
+                "class_definition",
             ],
             _ => vec![]
         }
@@ -127,7 +157,7 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
             match Range::from_node(*current_node) {
                 node_range if cursor_position.is_member_of(node_range) => {
                     let node_type = &current_node.kind();
-                    if node_type == &"attribute_item" {
+                    if node_type == &self.decorator_node_type() {
                         pending_queue.push_back(line);
                     } else {
                         writer_queue.push_back(String::from(comment_line));
@@ -195,7 +225,7 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
                 }
 
                 if !nested_traversable_symbols.contains(node_type) {
-                    if node_type != &"source_file" {
+                    if node_type != &self.top_level_node_type() {
                         continue
                     }
                 }
