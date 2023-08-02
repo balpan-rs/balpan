@@ -14,6 +14,7 @@ pub trait Traversable<'a, 'b> {
     fn get_annotation_whitelist(&self) -> Vec<&str>;
     fn analyze(&'b self) -> VecDeque<&'b str>;
     fn get_syntax_tree(&'b self) -> Tree;
+    fn get_nested_traversable_symbols(&self) -> Vec<&str>;
     fn get_top_level_nodes(&'a self, tree: &'b Tree) -> Vec<Node<'b>>;
 }
 
@@ -34,6 +35,18 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
                 "macro_definition",
             ],
             _ => vec![],
+        }
+    }
+
+    fn get_nested_traversable_symbols(&self) -> Vec<&str> {
+        let language = "rust";
+
+        match language {
+            "rust" => vec![
+                "mod_item",
+                "impl_item",
+            ],
+            _ => vec![]
         }
     }
 
