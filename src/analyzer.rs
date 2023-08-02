@@ -16,7 +16,6 @@ pub trait Traversable<'a, 'b> {
     fn analyze(&'b self) -> VecDeque<String>;
     fn get_syntax_tree(&'b self) -> Tree;
     fn get_nested_traversable_symbols(&self) -> Vec<&str>;
-    fn get_top_level_nodes(&'a self, tree: &'b Tree) -> Vec<Node<'b>>;
     fn get_whitelist_nodes(&'a self, tree: &'b Tree) -> Vec<Node<'b>>;
 }
 
@@ -171,24 +170,6 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
         }
 
         writer_queue.to_owned()
-    }
-
-    fn get_top_level_nodes(
-        &'a self, 
-        cloned_tree: &'b Tree
-    ) -> Vec<Node<'b>> {
-        {
-            let node = cloned_tree.root_node();
-            let mut cursor = node.walk();
-
-            return node
-                .children(&mut cursor)
-                .map( |child_node| {
-                    child_node
-                })
-                .collect()
-
-        }
     }
 
     /// This methods collects treesitter nodes with BFS
