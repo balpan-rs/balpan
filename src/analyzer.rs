@@ -7,7 +7,8 @@ use crate::grammar::get_language;
 use crate::tree_sitter_extended::{MembershipCheck, RangeFactory};
 
 pub struct Analyzer {
-    pub source_code: String
+    pub source_code: String,
+    pub language: String,
 }
 
 pub trait Traversable<'a, 'b> {
@@ -21,7 +22,7 @@ pub trait Traversable<'a, 'b> {
 
 impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
     fn get_annotation_whitelist(&self) -> Vec<&str> {
-        let language = "rust";
+        let language = self.language.as_str();
 
         match language {
             "rust" => vec![
@@ -55,7 +56,7 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
     }
 
     fn get_nested_traversable_symbols(&self) -> Vec<&str> {
-        let language = "rust";
+        let language = self.language.as_str();
 
         match language {
             "rust" => vec![
@@ -68,7 +69,7 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
 
     fn get_syntax_tree(&'b self) -> Tree {
         let parser = RefCell::new(Parser::new());
-        let language = get_language("rust").unwrap();
+        let language = get_language(self.language.as_str()).unwrap();
 
         let mut ts_parser = parser.borrow_mut();
         match ts_parser.set_language(language) {

@@ -4,12 +4,13 @@ mod anyhow_case_test {
     use balpan::analyzer::{Analyzer,Traversable};
     use balpan::grammar::{fetch_grammars, build_grammars};
 
-    fn assert_analyzed_source_code(source_code: &str, expected: &str) {
+    fn assert_analyzed_source_code(source_code: &str, expected: &str, language: &str) {
         fetch_grammars().unwrap();
         build_grammars(None).unwrap();
 
         let analyzer = Analyzer {
-            source_code: source_code.to_string()
+            source_code: source_code.to_string(),
+            language: language.to_string()
         };
 
         let writer_queue = &analyzer.analyze();
@@ -60,6 +61,6 @@ mod anyhow_case_test {
             MissingAttribute(String),
         }"};
 
-        assert_analyzed_source_code(source_code, result)
+        assert_analyzed_source_code(source_code, result, "rust")
     }
 }
