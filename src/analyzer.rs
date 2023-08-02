@@ -16,6 +16,7 @@ pub trait Traversable<'a, 'b> {
     fn get_syntax_tree(&'b self) -> Tree;
     fn get_nested_traversable_symbols(&self) -> Vec<&str>;
     fn get_top_level_nodes(&'a self, tree: &'b Tree) -> Vec<Node<'b>>;
+    fn get_whitelist_nodes(&'a self, tree: &'b Tree) -> Vec<Node<'b>>;
 }
 
 impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
@@ -150,5 +151,62 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
                 .collect()
 
         }
+    }
+
+    /// This methods collects treesitter nodes with BFS
+    ///
+    /// All of tree sitter nodes are ordered by non decreasing order
+    fn get_whitelist_nodes(
+        &'a self, 
+        tree: &'b Tree
+    ) -> Vec<Node<'b>> {
+        let deq: &mut VecDeque<Node> = &mut VecDeque::from([]);
+        let whitelist = self.get_annotation_whitelist();
+        let nested_traversable_symbols = self.get_nested_traversable_symbols();
+        let result: &mut Vec<Node> = &mut vec![];
+        deq.push_back(tree.root_node());
+
+        while !deq.is_empty() {
+            if let Some(node) = deq.pop_front() {
+                let node_type = &node.kind();
+
+                if whitelist.contains(node_type) {
+                    result.push(node);
+                }
+
+                if !nested_traversable_symbols.contains(node_type) {
+                    if node_type != &"source_file" {
+                        continue
+                    }
+                }
+
+                let mut cursor = node.walk();
+
+                for child_node in node.children(&mut cursor).into_iter() {
+                    deq.push_back(child_node);
+                }
+
+                cursor.reset(node);
+
+                if let Some(body) = node.child_by_field_name("body") {
+                    let mut body_cursor = body.walk();
+                    for child_node in body.children(&mut body_cursor).into_iter() {
+                        deq.push_back(child_node);
+                    }
+                }
+            }
+        }
+
+        result.sort_by(|u, v| {
+            u.start_position().row.cmp(
+                &v.start_position().row
+            )
+        });
+
+        for node in result.iter() {
+            println!("{}", node.kind());
+        }
+
+        return result.to_owned();
     }
 }
