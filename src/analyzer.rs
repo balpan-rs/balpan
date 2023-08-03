@@ -8,6 +8,7 @@ use crate::tree_sitter_extended::{MembershipCheck, RangeFactory};
 
 pub struct Analyzer {
     pub source_code: String,
+    pub language: String,
 }
 
 pub trait Traversable<'tree> {
@@ -16,13 +17,30 @@ pub trait Traversable<'tree> {
     fn analyze(&self) -> VecDeque<String>;
     fn get_syntax_tree(&self) -> Tree;
     fn get_nested_traversable_symbols(&self) -> Vec<&str>;
-    fn get_top_level_nodes(&self, tree: &'tree Tree) -> Vec<Node<'tree>>;
     fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<Node<'tree>>;
+    fn decorator_node_type(&self) -> &str;
+    fn top_level_node_type(&self) -> &str;
 }
 
 impl<'tree> Traversable<'tree> for Analyzer {
+    fn top_level_node_type(&self) -> &str {
+        match self.language.as_str() {
+            "rust" => "source_file",
+            "python" => "module",
+            _ => ""
+        }
+    }
+
+    fn decorator_node_type(&self) -> &str {
+        match self.language.as_str() {
+            "rust" => "attribute_item",
+            "python" => "null",
+            _ => "",
+        }
+    }
+
     fn get_annotation_whitelist(&self) -> Vec<&str> {
-        let language = "rust";
+        let language = self.language.as_str();
 
         match language {
             "rust" => vec![
@@ -36,12 +54,21 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 "trait_item",
                 "macro_definition",
             ],
+            "python" => vec![
+                "class_definition",
+                "function_definition",
+                "decorated_definition",
+            ],
             _ => vec![],
         }
     }
 
     fn get_indent_comment_pool(&self) -> Vec<String> {
-        let comment = "/// [TODO]";
+        let comment = match self.language.as_str() {
+            "rust" => "/// [TODO]",
+            "python" => "# [TODO]",
+            _ => "//"
+        };
         let ident = "    ";
         let max_ident_level = 8;
 
@@ -54,17 +81,20 @@ impl<'tree> Traversable<'tree> for Analyzer {
     }
 
     fn get_nested_traversable_symbols(&self) -> Vec<&str> {
-        let language = "rust";
+        let language = self.language.as_str();
 
         match language {
             "rust" => vec!["mod_item", "impl_item"],
-            _ => vec![],
+            "python" => vec![
+                "class_definition",
+            ],
+            _ => vec![]
         }
     }
 
     fn get_syntax_tree(&self) -> Tree {
         let parser = RefCell::new(Parser::new());
-        let language = get_language("rust").unwrap();
+        let language = get_language(self.language.as_str()).unwrap();
 
         let mut ts_parser = parser.borrow_mut();
         ts_parser
@@ -112,7 +142,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
             match Range::from_node(*current_node) {
                 node_range if cursor_position.is_member_of(node_range) => {
                     let node_type = current_node.kind();
-                    if node_type == "attribute_item" {
+                    if node_type == self.decorator_node_type() {
                         pending_queue.push_back(line);
                     } else {
                         writer_queue.push_back(comment_line);
@@ -157,15 +187,6 @@ impl<'tree> Traversable<'tree> for Analyzer {
         writer_queue.to_owned()
     }
 
-    fn get_top_level_nodes(&self, cloned_tree: &'tree Tree) -> Vec<Node<'tree>> {
-        {
-            let node = cloned_tree.root_node();
-            let mut cursor = node.walk();
-
-            return node.children(&mut cursor).collect();
-        }
-    }
-
     /// This methods collects treesitter nodes with BFS
     ///
     /// All of tree sitter nodes are ordered by non decreasing order
@@ -184,7 +205,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
                     result.push(node);
                 }
 
-                if !nested_traversable_symbols.contains(&node_type) && node_type != "source_file" {
+                if !nested_traversable_symbols.contains(&node_type) && node_type != self.top_level_node_type() {
                     continue;
                 }
 
