@@ -41,18 +41,16 @@ impl<'a, 'b> Traversable<'a, 'b> for Analyzer {
     }
 
     fn get_indent_comment_pool(&self) -> Vec<String> {
-        let comment = &String::from("/// [TODO]");
+        let comment = "/// [TODO]";
+        let ident = "    ";
+        let max_ident_level = 8;
 
-        vec![
-            comment.to_string(),
-            format!("    {}", comment),
-            format!("        {}", comment),
-            format!("            {}", comment),
-            format!("                {}", comment),
-            format!("                    {}", comment),
-            format!("                        {}", comment),
-            format!("                            {}", comment),
-        ]
+        (0..max_ident_level)
+            .map(|level| {
+                let indent = ident.repeat(level);
+                format!("{}{}", indent, comment)
+            })
+            .collect()
     }
 
     fn get_nested_traversable_symbols(&self) -> Vec<&str> {
