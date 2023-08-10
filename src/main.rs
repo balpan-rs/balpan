@@ -1,6 +1,9 @@
+use std::path::Path;
+
 use clap::Command;
 
 use balpan::utils::get_current_repository;
+use balpan::scanner::Scanner;
 
 fn git(args: Vec<String>) {
     std::process::Command::new("git")
@@ -44,10 +47,14 @@ fn main() {
             }   
 
             if !is_already_setup {
-                git(vec!["switch".to_string(), main_branch]);
-                git(vec!["switch".to_string(), "-c".to_string(), onboarding_branch])
+                git(vec!["switch".to_string(), main_branch.clone()]);
+                git(vec!["switch".to_string(), "-c".to_string(), onboarding_branch.clone()])
             }
-            
+
+            git(vec!["switch".to_string(), main_branch]);
+            git(vec!["switch".to_string(), onboarding_branch]);
+
+            Scanner::scan(&repo);
         }
         println!("init!");
     }
