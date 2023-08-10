@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.71"
 cc = "1.0.79"
+clap = "4.3.21"
 etcetera = "0.8.0"
 git2 = "0.17.2"
 ignore = "0.4.20"
