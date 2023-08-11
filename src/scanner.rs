@@ -21,6 +21,9 @@ impl Scanner {
             let repo_root = workdir.to_string_lossy().to_string();
             let filenames = list_available_files(&repo_root);
             for filename in filenames {
+                if filename.contains("test") {
+                    continue;
+                }
                 let path = Path::new(&filename);
                 let language = match path.extension() {
                     Some(os_str) => {
