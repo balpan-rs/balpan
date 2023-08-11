@@ -6,9 +6,36 @@ use tree_sitter::{Node, Parser, Point, Range, Tree};
 use crate::grammar::get_language;
 use crate::tree_sitter_extended::{MembershipCheck, RangeFactory};
 
+/// Language enum for `Analyzer` struct
+pub enum Language {
+    Rust,
+    Python,
+    Other,
+}
+
+impl Language {
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Rust => "rust",
+            Self::Python => "python",
+            _ => "",
+        }
+    }
+}
+
+impl From<&str> for Language{
+    fn from(language_name: &str) -> Self {
+        match language_name {
+            "rust" => Self::Rust,
+            "python" => Self::Python,
+            _ => Self::Other,
+        }
+    }
+}
+
 pub struct Analyzer {
     pub source_code: String,
-    pub language: String,
+    pub language: Language,
 }
 
 pub trait Traversable<'tree> {
@@ -24,26 +51,24 @@ pub trait Traversable<'tree> {
 
 impl<'tree> Traversable<'tree> for Analyzer {
     fn top_level_node_type(&self) -> &str {
-        match self.language.as_str() {
-            "rust" => "source_file",
-            "python" => "module",
-            _ => ""
+        match self.language {
+            Language::Rust => "source_file",
+            Language::Python => "module",
+            _ => "",
         }
     }
 
     fn decorator_node_type(&self) -> &str {
-        match self.language.as_str() {
-            "rust" => "attribute_item",
-            "python" => "null",
+        match self.language {
+            Language::Rust => "attribute_item",
+            Language::Python => "null",
             _ => "",
         }
     }
 
     fn get_annotation_whitelist(&self) -> Vec<&str> {
-        let language = self.language.as_str();
-
-        match language {
-            "rust" => vec![
+        match self.language {
+            Language::Rust => vec![
                 "attribute_item",
                 "mod_item",
                 "enum_item",
@@ -54,7 +79,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 "trait_item",
                 "macro_definition",
             ],
-            "python" => vec![
+            Language::Python => vec![
                 "class_definition",
                 "function_definition",
                 "decorated_definition",
@@ -64,10 +89,10 @@ impl<'tree> Traversable<'tree> for Analyzer {
     }
 
     fn get_indent_comment_pool(&self) -> Vec<String> {
-        let comment = match self.language.as_str() {
-            "rust" => "/// [TODO]",
-            "python" => "# [TODO]",
-            _ => "//"
+        let comment = match self.language {
+            Language::Rust => "/// [TODO]",
+            Language::Python => "# [TODO]",
+            _ => "//",
         };
         let ident = "    ";
         let max_ident_level = 100;
@@ -81,15 +106,12 @@ impl<'tree> Traversable<'tree> for Analyzer {
     }
 
     fn get_nested_traversable_symbols(&self) -> Vec<&str> {
-        let language = self.language.as_str();
-
-        match language {
-            "rust" => vec!["mod_item", "impl_item"],
-            "python" => vec![
-                "class_definition",
-            ],
-            _ => vec![]
+        match self.language {
+            Language::Rust => vec!["mod_item", "impl_item"],
+            Language::Python => vec!["class_definition"],
+            _ => vec![],
         }
+
     }
 
     fn get_syntax_tree(&self) -> Tree {
@@ -212,7 +234,9 @@ impl<'tree> Traversable<'tree> for Analyzer {
                     result.push(node);
                 }
 
-                if !nested_traversable_symbols.contains(&node_type) && node_type != self.top_level_node_type() {
+                if !nested_traversable_symbols.contains(&node_type)
+                    && node_type != self.top_level_node_type()
+                {
                     continue;
                 }
 
