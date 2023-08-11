@@ -31,7 +31,11 @@ impl Scanner {
                         }
                     },
                     _ => "",
-                    };
+                };
+
+                if !vec!["python", "rust"].contains(&language) {
+                    continue;
+                }
 
                 if let Ok(mut file) = File::open(path) {
                     let mut source_code = String::new();
