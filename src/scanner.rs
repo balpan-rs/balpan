@@ -37,7 +37,7 @@ impl Scanner {
                     continue;
                 }
 
-                if let Ok(mut file) = File::open(path) {
+                if let Ok(mut file) = File::options().read(true).write(true).open(path) {
                     let mut source_code = String::new();
                     file.read_to_string(&mut source_code);
                     let analyzer = Analyzer {
