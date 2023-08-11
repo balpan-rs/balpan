@@ -3,7 +3,7 @@ mod integration_test {
     mod rust_test;
     mod python_test;
 
-    use balpan::analyzer::{Analyzer,Traversable};
+    use balpan::analyzer::{Analyzer,Language, Traversable};
     use balpan::grammar::{fetch_grammars, build_grammars};
 
     pub fn assert_analyzed_source_code(source_code: &str, expected: &str, language: &str) {
@@ -12,7 +12,7 @@ mod integration_test {
 
         let analyzer = Analyzer {
             source_code: source_code.to_string(),
-            language: language.to_string(),
+            language: Language::from(language),
         };
 
         let writer_queue = &analyzer.analyze();

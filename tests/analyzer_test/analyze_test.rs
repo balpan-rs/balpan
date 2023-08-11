@@ -1,8 +1,7 @@
-
 #[cfg(test)]
 mod analyze_test {
     use indoc::indoc;
-    use balpan::analyzer::{Analyzer,Traversable};
+    use balpan::analyzer::{Analyzer, Language, Traversable};
     use balpan::grammar::{fetch_grammars, build_grammars};
 
     fn assert_analyzed_source_code(source_code: &str, expected: &str, language: &str) {
@@ -11,7 +10,7 @@ mod analyze_test {
 
         let analyzer = Analyzer {
             source_code: source_code.to_string(),
-            language: language.to_string(),
+            language: Language::from(language),
         };
 
         let writer_queue = &analyzer.analyze();
@@ -102,7 +101,7 @@ mod analyze_test {
 
     #[test]
     fn test_trait_and_impl() {
-        let source_code = indoc! { "       
+        let source_code = indoc! { "
         pub trait RangeFactory {
             fn from_node(node: Node) -> Range;
         }
@@ -119,7 +118,7 @@ mod analyze_test {
             }
         }"};
 
-        let result = indoc! { "       
+        let result = indoc! { "
         /// [TODO]
         pub trait RangeFactory {
             fn from_node(node: Node) -> Range;
@@ -144,7 +143,7 @@ mod analyze_test {
 
     #[test]
     fn test_trait_and_impl_with_mod() {
-        let source_code = indoc! { "       
+        let source_code = indoc! { "
         mod tree_sitter_extended {
             pub trait RangeFactory {
                 fn from_node(node: Node) -> Range;
@@ -163,7 +162,7 @@ mod analyze_test {
             }
         }"};
 
-        let result = indoc! { "       
+        let result = indoc! { "
         /// [TODO]
         mod tree_sitter_extended {
             /// [TODO]
