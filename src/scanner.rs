@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Seek};
 use std::path::Path;
 
 use git2::Repository;
@@ -52,6 +52,8 @@ impl Scanner {
                         lines.push(String::from(line));
                     }
 
+                    file.set_len(0).unwrap();
+                    file.rewind().unwrap();
                     file.write_all(lines.join("\n").as_bytes()).unwrap();
                 }
                 
