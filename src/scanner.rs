@@ -7,6 +7,7 @@ use git2::Repository;
 use crate::grammar::{fetch_grammars, build_grammars};
 use crate::utils::list_available_files;
 use crate::analyzer::{Analyzer, Traversable};
+use crate::language::Language;
 
 
 pub struct Scanner;
@@ -45,7 +46,7 @@ impl Scanner {
                     file.read_to_string(&mut source_code);
                     let analyzer = Analyzer {
                         source_code,
-                        language: language.to_string(),
+                        language: Language::from(language),
                     };
 
                     let writer_queue = &analyzer.analyze();

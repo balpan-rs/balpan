@@ -5,33 +5,7 @@ use tree_sitter::{Node, Parser, Point, Range, Tree};
 
 use crate::grammar::get_language;
 use crate::tree_sitter_extended::{MembershipCheck, RangeFactory};
-
-/// Language enum for `Analyzer` struct
-pub enum Language {
-    Rust,
-    Python,
-    Other,
-}
-
-impl Language {
-    fn as_str(&self) -> &str {
-        match self {
-            Self::Rust => "rust",
-            Self::Python => "python",
-            _ => "",
-        }
-    }
-}
-
-impl From<&str> for Language{
-    fn from(language_name: &str) -> Self {
-        match language_name {
-            "rust" => Self::Rust,
-            "python" => Self::Python,
-            _ => Self::Other,
-        }
-    }
-}
+use crate::language::Language;
 
 pub struct Analyzer {
     pub source_code: String,
