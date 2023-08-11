@@ -70,7 +70,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
             _ => "//"
         };
         let ident = "    ";
-        let max_ident_level = 8;
+        let max_ident_level = 100;
 
         (0..max_ident_level)
             .map(|level| {
