@@ -5,6 +5,7 @@ pub mod grammar;
 pub mod analyzer;
 pub mod utils;
 pub mod tree_sitter_extended;
+pub mod language;
 
 use etcetera::base_strategy::{choose_base_strategy, BaseStrategy};
 use std::path::{Path, PathBuf};

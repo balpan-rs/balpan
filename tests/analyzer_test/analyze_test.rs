@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod analyze_test {
     use indoc::indoc;
-    use balpan::analyzer::{Analyzer, Language, Traversable};
+    use balpan::analyzer::{Analyzer, Traversable};
     use balpan::grammar::{fetch_grammars, build_grammars};
+    use balpan::language::Language;
 
     fn assert_analyzed_source_code(source_code: &str, expected: &str, language: &str) {
         fetch_grammars().unwrap();
