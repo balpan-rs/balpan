@@ -188,4 +188,106 @@ mod analyze_test {
 
         assert_analyzed_source_code(source_code, result, "rust")
     }
+
+    #[test]
+    fn test_python_function() {
+        let source_code = indoc! { "
+        def foo():
+            print('foo')"};
+
+        let expected = indoc! { "
+        # [TODO]
+        def foo():
+            print('foo')"};
+
+        assert_analyzed_source_code(source_code, expected, "python");
+
+        // python closure
+        let source_code = indoc! { "
+        def outer_function():
+            def inner_function():
+                print('foo')
+            return inner_function"};
+
+        let expected = indoc! { "
+        # [TODO]
+        def outer_function():
+            # [TODO]
+            def inner_function():
+                print('foo')
+            return inner_function"};
+
+        assert_analyzed_source_code(source_code, expected, "python")
+    }
+
+    #[test]
+    fn test_python_class_and_function() {
+        let source_code = indoc! { "
+        class Foo:
+            def __init__(self, value = 0):
+                self.value = value
+
+            def add(self, value: int):
+                self.value += value" };
+
+        let expected = indoc! { "
+        # [TODO]
+        class Foo:
+            # [TODO]
+            def __init__(self, value = 0):
+                self.value = value
+
+            # [TODO]
+            def add(self, value: int):
+                self.value += value" };
+
+        assert_analyzed_source_code(source_code, expected, "python")
+    }
+
+    #[test]
+    fn test_python_contain_decorator() {
+        let source_code = indoc! { "
+        def debug_func(func):
+            def wrapper(*args, **kwargs):
+                print(f\"Calling {func.__name__} with arguments {args} and keyword arguments {kwargs}\")
+                return func(*args, **kwargs)
+            return wrapper
+        
+        @debug_func
+        def foo(a: int, b: int) -> int:
+            return a + b" };
+
+        let expected = indoc! { "
+        # [TODO]
+        def debug_func(func):
+            # [TODO]
+            def wrapper(*args, **kwargs):
+                print(f\"Calling {func.__name__} with arguments {args} and keyword arguments {kwargs}\")
+                return func(*args, **kwargs)
+            return wrapper
+
+        # [TODO]
+        @debug_func
+        def foo(a: int, b: int) -> int:
+            return a + b" };
+
+        assert_analyzed_source_code(source_code, expected, "python")
+    }
+
+    #[test]
+    fn test_python_lambda_and_hof_no_comments() {
+        let source_code = indoc! { "
+        multiply = lambda x, y: x * y
+
+        numbers = [1, 2, 3, 4]
+        doubled = map(lambda x: x * 2, numbers)" };
+
+        let expected = indoc! { "
+        multiply = lambda x, y: x * y
+
+        numbers = [1, 2, 3, 4]
+        doubled = map(lambda x: x * 2, numbers)" };
+
+        assert_analyzed_source_code(source_code, expected, "python")
+    }
 }

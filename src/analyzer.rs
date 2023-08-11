@@ -14,6 +14,7 @@ pub struct Analyzer {
 pub trait Traversable<'tree> {
     fn get_indent_comment_pool(&self) -> Vec<String>;
     fn get_annotation_whitelist(&self) -> Vec<&str>;
+    fn get_indentation_rule(&self) -> usize;
     fn analyze(&self) -> VecDeque<String>;
     fn get_syntax_tree(&self) -> Tree;
     fn get_nested_traversable_symbols(&self) -> Vec<&str>;
@@ -80,6 +81,14 @@ impl<'tree> Traversable<'tree> for Analyzer {
             .collect()
     }
 
+    fn get_indentation_rule(&self) -> usize {
+        match self.language.as_str() {
+            "rust" => 4,
+            "python" => 4,
+            _ => 0
+        }
+    }
+
     fn get_nested_traversable_symbols(&self) -> Vec<&str> {
         let language = self.language.as_str();
 
@@ -87,6 +96,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
             "rust" => vec!["mod_item", "impl_item"],
             "python" => vec![
                 "class_definition",
+                "function_definition",
             ],
             _ => vec![]
         }
@@ -134,8 +144,9 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 None => panic!("Failed to retrieve treesitter node from queue"),
             };
 
-            let indent_size = indentation_context.len();
-            let comment_line: String = indent_comment_pool[indent_size].clone();
+            // let indent_size = indentation_context.len();
+            let current_indentation = line.chars().take_while(|c| c.is_whitespace()).count();
+            let comment_line: String = indent_comment_pool[current_indentation / self.get_indentation_rule()].clone();
 
             let mut pop_node = false;
 
