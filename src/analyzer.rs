@@ -115,7 +115,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
         let mut writer_queue = VecDeque::new();
         let mut pending_queue = VecDeque::new();
         let mut nodes_queue = VecDeque::from(nodes);
-        let mut indentation_context = VecDeque::new();
+        let mut indentation_context: VecDeque<Node> = VecDeque::new();
         let indent_comment_pool = self.get_indent_comment_pool();
 
         for (i, line) in self.source_code.lines().enumerate() {
@@ -157,17 +157,17 @@ impl<'tree> Traversable<'tree> for Analyzer {
                         pop_node = true;
                     }
 
+                    if !indentation_context.is_empty() {
+                        if let Some(current_context) = indentation_context.back() {
+                            if cursor_position.row >= current_context.end_position().row {
+                                indentation_context.pop_back();
+                            }
+                        }
+                    }
+
                     if nested_traversable_symbols.contains(&node_type) {
                         indentation_context.push_back(*current_node);
                         pop_node = true;
-                    }
-
-                    if !indentation_context.is_empty() {
-                        if let Some(current_context) = indentation_context.front() {
-                            if cursor_position == current_context.end_position() {
-                                indentation_context.pop_front();
-                            }
-                        }
                     }
 
                     if cursor_position == current_node.end_position() {
@@ -179,6 +179,13 @@ impl<'tree> Traversable<'tree> for Analyzer {
                     }
                 }
                 _ => {
+                    if !indentation_context.is_empty() {
+                        if let Some(current_context) = indentation_context.back() {
+                            if cursor_position.row >= current_context.end_position().row {
+                                indentation_context.pop_back();
+                            }
+                        }
+                    }
                     writer_queue.push_back(line.to_owned());
                 }
             }
