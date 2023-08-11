@@ -228,10 +228,6 @@ impl<'tree> Traversable<'tree> for Analyzer {
 
         result.sort_by(|u, v| u.start_position().row.cmp(&v.start_position().row));
 
-        for node in result.iter() {
-            println!("{}", node.kind());
-        }
-
         result.to_owned()
     }
 }

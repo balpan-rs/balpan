@@ -59,10 +59,6 @@ impl Scanner {
                     file.rewind().unwrap();
                     file.write_all(lines.join("\n").as_bytes()).unwrap();
                 }
-                
-
-                println!("{:?}", path.extension());
-                println!("{:?}", path.file_name());
             }
 
         }
