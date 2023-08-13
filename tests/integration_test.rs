@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod integration_test {
-    mod rust_test;
     mod python_test;
+    mod rust_test;
 
     use balpan::analyzer::{Analyzer, Traversable};
-    use balpan::grammar::{fetch_grammars, build_grammars};
+    use balpan::grammar::{build_grammars, fetch_grammars};
     use balpan::language::Language;
 
     pub fn assert_analyzed_source_code(source_code: &str, expected: &str, language: &str) {

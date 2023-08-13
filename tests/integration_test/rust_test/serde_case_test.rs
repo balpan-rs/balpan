@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod serde_case_test {
-    use indoc::indoc;
     use crate::integration_test::assert_analyzed_source_code;
+    use indoc::indoc;
 
     #[test]
     fn test_several_impl_declaration() {

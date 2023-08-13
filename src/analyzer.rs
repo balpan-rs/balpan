@@ -4,8 +4,8 @@ use std::collections::VecDeque;
 use tree_sitter::{Node, Parser, Point, Range, Tree};
 
 use crate::grammar::get_language;
-use crate::tree_sitter_extended::{MembershipCheck, RangeFactory, ResolveSymbol};
 use crate::language::Language;
+use crate::tree_sitter_extended::{MembershipCheck, RangeFactory, ResolveSymbol};
 
 pub struct Analyzer {
     pub source_code: String,
@@ -63,12 +63,12 @@ impl<'tree> Traversable<'tree> for Analyzer {
         let mut indentation_context: VecDeque<(Node, String)> = VecDeque::new();
         let indent_comment_pool = self.get_indent_comment_pool();
         let mut latest_comment_line = "";
-        let mut latest_comment_line_index = -1 as isize;
+        let mut latest_comment_line_index = -1_isize;
 
         let mut lines = vec![];
         for line in self.source_code.lines() {
             lines.push(line.to_string());
-        };
+        }
 
         for (i, line) in lines.iter().enumerate() {
             let row = i;
@@ -92,13 +92,14 @@ impl<'tree> Traversable<'tree> for Analyzer {
             let mut pop_node = false;
 
             match Range::from_node(*current_node) {
-                node_range if cursor_position.is_member_of(node_range) => {           
+                node_range if cursor_position.is_member_of(node_range) => {
                     let node_type = current_node.kind();
                     if node_type == self.language.decorator_node_type() {
                         pending_queue.push_back(line);
                     } else {
-                        for (node, node_symbol) in indentation_context.iter() {
-                            symbol_name_with_context.push_str(&format!("{} > ", node_symbol).to_string());
+                        for (_node, node_symbol) in indentation_context.iter() {
+                            symbol_name_with_context
+                                .push_str(&format!("{} > ", node_symbol).to_string());
                         }
 
                         let node_symbol_with_indent = &lines[*row];
@@ -106,7 +107,11 @@ impl<'tree> Traversable<'tree> for Analyzer {
                         symbol_name_with_context.push_str(node_symbol);
 
                         let indent_size = indentation_context.len();
-                        let comment_line: String = format!("{} {}", indent_comment_pool[indent_size].clone(), symbol_name_with_context);
+                        let comment_line: String = format!(
+                            "{} {}",
+                            indent_comment_pool[indent_size].clone(),
+                            symbol_name_with_context
+                        );
 
                         if latest_comment_line != comment_line {
                             writer_queue.push_back(comment_line);
@@ -132,7 +137,10 @@ impl<'tree> Traversable<'tree> for Analyzer {
 
                     if nested_traversable_symbols.contains(&node_type) {
                         let (_, from, to) = current_node.identifier_range();
-                        indentation_context.push_back((*current_node, line[from.to_owned()..to.to_owned()].to_string()));
+                        indentation_context.push_back((
+                            *current_node,
+                            line[from.to_owned()..to.to_owned()].to_string(),
+                        ));
                         pop_node = true;
                     }
 
@@ -212,7 +220,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
             }
         }
 
-        result.sort_by(|(u,_), (v,_)| u.start_position().row.cmp(&v.start_position().row));
+        result.sort_by(|(u, _), (v, _)| u.start_position().row.cmp(&v.start_position().row));
 
         result.to_owned()
     }

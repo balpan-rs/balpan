@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod anyhow_case_test {
-    use indoc::indoc;
     use crate::integration_test::assert_analyzed_source_code;
+    use indoc::indoc;
 
     #[test]
     fn test_declaring_error_enum_with_macro() {

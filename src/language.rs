@@ -1,5 +1,5 @@
 #[derive(PartialEq)]
-pub enum Language{
+pub enum Language {
     Rust,
     Python,
     Other(String),
@@ -19,7 +19,7 @@ impl Language {
         match extension {
             "rs" => Self::Rust,
             "py" => Self::Python,
-            other_extension => Self::Other(other_extension.to_string())
+            other_extension => Self::Other(other_extension.to_string()),
         }
     }
 
@@ -79,12 +79,12 @@ impl Language {
     }
 }
 
-impl From<&str> for Language{
-  fn from(language_name: &str) -> Self {
-      match language_name {
-          "rust" => Self::Rust,
-          "python" => Self::Python,
-          other_language => Self::Other(other_language.to_string()),
-      }
-  }
+impl From<&str> for Language {
+    fn from(language_name: &str) -> Self {
+        match language_name {
+            "rust" => Self::Rust,
+            "python" => Self::Python,
+            other_language => Self::Other(other_language.to_string()),
+        }
+    }
 }

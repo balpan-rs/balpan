@@ -1,5 +1,4 @@
-use tree_sitter::{Point, Range, Node};
-
+use tree_sitter::{Node, Point, Range};
 
 pub trait MembershipCheck {
     fn is_before(&self, range: Range) -> bool;
@@ -72,24 +71,24 @@ pub trait ResolveSymbol {
 impl ResolveSymbol for Node<'_> {
     fn identifier_range(&self) -> (usize, usize, usize) {
         if self.kind() == "attribute_item" {
-            return (0, 0, 0)
+            return (0, 0, 0);
         }
 
         let mut node = self.child_by_field_name("name");
 
-        /// case of decorated_definition
+        // case of decorated_definition
         if self.kind() == "decorated_definition" {
             let definition_node = self.child_by_field_name("definition").unwrap();
             node = definition_node.child_by_field_name("name");
         }
 
-        /// case of impl_item
+        // case of impl_item
         if self.kind() == "impl_item" {
             node = self.child_by_field_name("trait");
         }
 
         let identifier_node = node.unwrap();
-        
+
         let from = identifier_node.start_position().column;
         let row = identifier_node.end_position().row;
         let to = identifier_node.end_position().column;

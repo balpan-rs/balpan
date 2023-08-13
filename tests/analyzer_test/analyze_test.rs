@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod analyze_test {
-    use indoc::indoc;
     use balpan::analyzer::{Analyzer, Traversable};
-    use balpan::grammar::{fetch_grammars, build_grammars};
+    use balpan::grammar::{build_grammars, fetch_grammars};
     use balpan::language::Language;
+    use indoc::indoc;
 
     fn assert_analyzed_source_code(source_code: &str, expected: &str, language: &str) {
         fetch_grammars().unwrap();
@@ -20,7 +20,6 @@ mod analyze_test {
         for line in writer_queue {
             string_vector.push(String::from(line));
         }
-
 
         let actual: String = string_vector
             // .iter()

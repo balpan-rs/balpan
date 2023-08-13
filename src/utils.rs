@@ -8,7 +8,7 @@ use ignore::WalkBuilder;
 pub fn get_current_repository() -> Option<Repository> {
     let current_dir = env::current_dir().ok()?;
     let repo = Repository::discover(current_dir).ok()?;
-    
+
     Some(repo)
 }
 
@@ -28,17 +28,15 @@ pub fn list_available_files(repo_path: &str) -> Vec<String> {
         .build();
 
     // Traverse the directory with gitignore rules applied
-    for entry in walker {
-        if let Ok(entry) = entry {
-            // Skip directories
-            if entry.file_type().expect(".").is_dir() {
-                continue;
-            }
+    for entry in walker.flatten() {
+        // Skip directories
+        if entry.file_type().expect(".").is_dir() {
+            continue;
+        }
 
-            // Open each file and process it
-            if let Ok(_file) = File::open(entry.path()) {
-                result.push(String::from(entry.path().to_string_lossy()));
-            }
+        // Open each file and process it
+        if let Ok(_file) = File::open(entry.path()) {
+            result.push(String::from(entry.path().to_string_lossy()));
         }
     }
 

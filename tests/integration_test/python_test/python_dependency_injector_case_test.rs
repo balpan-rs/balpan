@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod python_dependency_injector_case_test {
-    use indoc::indoc;
     use crate::integration_test::assert_analyzed_source_code;
+    use indoc::indoc;
 
     #[test]
     fn test_decorated_definition() {
@@ -11,7 +11,7 @@ mod python_dependency_injector_case_test {
         def index(service: Service = Provide[Container.service]):
             result = service.process()
             return jsonify({\"result\": result})"};
-        
+
         let result = indoc! {"
         # [TODO] index
         @app.route(\"/\")
@@ -25,7 +25,7 @@ mod python_dependency_injector_case_test {
 
     #[test]
     fn test_decorated_async_function_definition() {
-        let source_code = indoc! {"      
+        let source_code = indoc! {"
         @inject
         async def async_injection(
                 resource1: object = Provide[\"resource1\"],
@@ -40,7 +40,7 @@ mod python_dependency_injector_case_test {
         ):
             return resource1, resource2"};
 
-        let result = indoc! {"      
+        let result = indoc! {"
         # [TODO] async_injection
         @inject
         async def async_injection(
