@@ -14,63 +14,12 @@ pub struct Analyzer {
 
 pub trait Traversable<'tree> {
     fn get_indent_comment_pool(&self) -> Vec<String>;
-    fn get_annotation_whitelist(&self) -> Vec<&str>;
     fn analyze(&self) -> VecDeque<String>;
     fn get_syntax_tree(&self) -> Tree;
-    fn get_nested_traversable_symbols(&self) -> Vec<&str>;
     fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))>;
-    fn decorator_node_type(&self) -> &str;
-    fn comment_node_type(&self) -> &str;
-    fn top_level_node_type(&self) -> &str;
 }
 
 impl<'tree> Traversable<'tree> for Analyzer {
-    fn top_level_node_type(&self) -> &str {
-        match self.language {
-            Language::Rust => "source_file",
-            Language::Python => "module",
-            _ => "",
-        }
-    }
-
-    fn decorator_node_type(&self) -> &str {
-        match self.language {
-            Language::Rust => "attribute_item",
-            Language::Python => "null",
-            _ => "",
-        }
-    }
-
-    fn comment_node_type(&self) -> &str {
-        match self.language {
-            Language::Rust => "line_comment",
-            Language::Python => "comment",
-            _ => "",
-        }
-    }
-
-    fn get_annotation_whitelist(&self) -> Vec<&str> {
-        match self.language {
-            Language::Rust => vec![
-                "attribute_item",
-                "mod_item",
-                "enum_item",
-                "type_item",
-                "impl_item",
-                "function_item",
-                "struct_item",
-                "trait_item",
-                "macro_definition",
-            ],
-            Language::Python => vec![
-                "class_definition",
-                "function_definition",
-                "decorated_definition",
-            ],
-            _ => vec![],
-        }
-    }
-
     fn get_indent_comment_pool(&self) -> Vec<String> {
         let comment = match self.language {
             Language::Rust => "/// [TODO]",
@@ -86,15 +35,6 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 format!("{}{}", indent, comment)
             })
             .collect()
-    }
-
-    fn get_nested_traversable_symbols(&self) -> Vec<&str> {
-        match self.language {
-            Language::Rust => vec!["mod_item", "impl_item"],
-            Language::Python => vec!["class_definition"],
-            _ => vec![],
-        }
-
     }
 
     fn get_syntax_tree(&self) -> Tree {
@@ -115,7 +55,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
         let tree = self.get_syntax_tree();
         let nodes = self.get_whitelist_nodes(&tree);
 
-        let nested_traversable_symbols = self.get_nested_traversable_symbols();
+        let nested_traversable_symbols = self.language.nested_traversable_symbols();
 
         let mut writer_queue = VecDeque::new();
         let mut pending_queue = VecDeque::new();
@@ -154,7 +94,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
             match Range::from_node(*current_node) {
                 node_range if cursor_position.is_member_of(node_range) => {           
                     let node_type = current_node.kind();
-                    if node_type == self.decorator_node_type() {
+                    if node_type == self.language.decorator_node_type() {
                         pending_queue.push_back(line);
                     } else {
                         for (node, node_symbol) in indentation_context.iter() {
@@ -235,8 +175,8 @@ impl<'tree> Traversable<'tree> for Analyzer {
     /// All of tree sitter nodes are ordered by non decreasing order
     fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
         let mut deq = VecDeque::new();
-        let whitelist = self.get_annotation_whitelist();
-        let nested_traversable_symbols = self.get_nested_traversable_symbols();
+        let whitelist = self.language.annotation_whitelist();
+        let nested_traversable_symbols = self.language.nested_traversable_symbols();
         let mut result = Vec::new();
         deq.push_back(tree.root_node());
 
@@ -250,7 +190,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 }
 
                 if !nested_traversable_symbols.contains(&node_type)
-                    && node_type != self.top_level_node_type()
+                    && node_type != self.language.top_level_node_type()
                 {
                     continue;
                 }
