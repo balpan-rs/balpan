@@ -54,7 +54,7 @@ fn main() {
 
     if let Some(_) = matches.subcommand_matches("init") {
         let repo = get_current_repository().unwrap();
-        let onboarding_branch = find_branch(&repo, "onboarding").to_string();
+        let mut onboarding_branch = find_branch(&repo, "onboarding").to_string();
         is_already_setup = !onboarding_branch.is_empty();
 
         if main_branch.is_empty() {
@@ -67,11 +67,11 @@ fn main() {
 
         if !is_already_setup {
             git(vec!["switch".to_string(), main_branch.clone()]);
-            git(vec!["switch".to_string(), "-c".to_string(), onboarding_branch.clone()])
+            git(vec!["switch".to_string(), "-c".to_string(), "onboarding".to_string()])
         }
 
         git(vec!["switch".to_string(), main_branch]);
-        git(vec!["switch".to_string(), onboarding_branch]);
+        git(vec!["switch".to_string(), "onboarding".to_string()]);
 
         Scanner::scan(&repo);
         println!("init!");
