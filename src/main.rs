@@ -53,50 +53,49 @@ fn main() {
     let mut is_already_setup = false;
 
     if let Some(_) = matches.subcommand_matches("init") {
-        if let Some(repo) = get_current_repository() {
-            let onboarding_branch = find_branch(&repo, "onboarding").to_string();
-            is_already_setup = !onboarding_branch.is_empty();
+        let repo = get_current_repository().unwrap();
+        let onboarding_branch = find_branch(&repo, "onboarding").to_string();
+        is_already_setup = !onboarding_branch.is_empty();
 
-            if main_branch.is_empty() {
-                main_branch = find_branch(&repo, "main").to_string();
-            }
-            
-            if main_branch.is_empty() {
-                main_branch = find_branch(&repo, "master").to_string();
-            }
-
-            if !is_already_setup {
-                git(vec!["switch".to_string(), main_branch.clone()]);
-                git(vec!["switch".to_string(), "-c".to_string(), onboarding_branch.clone()])
-            }
-
-            git(vec!["switch".to_string(), main_branch]);
-            git(vec!["switch".to_string(), onboarding_branch]);
-
-            Scanner::scan(&repo);
+        if main_branch.is_empty() {
+            main_branch = find_branch(&repo, "main").to_string();
         }
+        
+        if main_branch.is_empty() {
+            main_branch = find_branch(&repo, "master").to_string();
+        }
+
+        if !is_already_setup {
+            git(vec!["switch".to_string(), main_branch.clone()]);
+            git(vec!["switch".to_string(), "-c".to_string(), onboarding_branch.clone()])
+        }
+
+        git(vec!["switch".to_string(), main_branch]);
+        git(vec!["switch".to_string(), onboarding_branch]);
+
+        Scanner::scan(&repo);
         println!("init!");
         return
     }
 
     if let Some(_) = matches.subcommand_matches("reset") {
-        if let Some(repo) = get_current_repository() {
-            let onboarding_branch = find_branch(&repo, "onboarding").to_string();
-            is_already_setup = !onboarding_branch.is_empty();
+        let repo = get_current_repository().unwrap();
+        let onboarding_branch = find_branch(&repo, "onboarding").to_string();
+        is_already_setup = !onboarding_branch.is_empty();
 
-            if main_branch.is_empty() {
-                main_branch = find_branch(&repo, "main").to_string();
-            }
-            
-            if main_branch.is_empty() {
-                main_branch = find_branch(&repo, "master").to_string();
-            }
-
-            if !is_already_setup {
-                git(vec!["switch".to_string(), main_branch.clone()]);
-                git(vec!["switch".to_string(), "-c".to_string(), onboarding_branch.clone()])
-            }
+        if main_branch.is_empty() {
+            main_branch = find_branch(&repo, "main").to_string();
         }
+        
+        if main_branch.is_empty() {
+            main_branch = find_branch(&repo, "master").to_string();
+        }
+
+        if !is_already_setup {
+            git(vec!["switch".to_string(), main_branch.clone()]);
+            git(vec!["switch".to_string(), "-c".to_string(), onboarding_branch.clone()])
+        }
+
         return
     }
 }
