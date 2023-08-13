@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use tree_sitter::{Node, Parser, Point, Range, Tree};
 
 use crate::grammar::get_language;
-use crate::tree_sitter_extended::{MembershipCheck, RangeFactory};
+use crate::tree_sitter_extended::{MembershipCheck, RangeFactory, ResolveSymbol};
 use crate::language::Language;
 
 pub struct Analyzer {
@@ -18,8 +18,9 @@ pub trait Traversable<'tree> {
     fn analyze(&self) -> VecDeque<String>;
     fn get_syntax_tree(&self) -> Tree;
     fn get_nested_traversable_symbols(&self) -> Vec<&str>;
-    fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<Node<'tree>>;
+    fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))>;
     fn decorator_node_type(&self) -> &str;
+    fn comment_node_type(&self) -> &str;
     fn top_level_node_type(&self) -> &str;
 }
 
@@ -36,6 +37,14 @@ impl<'tree> Traversable<'tree> for Analyzer {
         match self.language {
             Language::Rust => "attribute_item",
             Language::Python => "null",
+            _ => "",
+        }
+    }
+
+    fn comment_node_type(&self) -> &str {
+        match self.language {
+            Language::Rust => "line_comment",
+            Language::Python => "comment",
             _ => "",
         }
     }
@@ -111,11 +120,19 @@ impl<'tree> Traversable<'tree> for Analyzer {
         let mut writer_queue = VecDeque::new();
         let mut pending_queue = VecDeque::new();
         let mut nodes_queue = VecDeque::from(nodes);
-        let mut indentation_context: VecDeque<Node> = VecDeque::new();
+        let mut indentation_context: VecDeque<(Node, String)> = VecDeque::new();
         let indent_comment_pool = self.get_indent_comment_pool();
+        let mut latest_comment_line = "";
+        let mut latest_comment_line_index = -1 as isize;
 
-        for (i, line) in self.source_code.lines().enumerate() {
+        let mut lines = vec![];
+        for line in self.source_code.lines() {
+            lines.push(line.to_string());
+        };
+
+        for (i, line) in lines.iter().enumerate() {
             let row = i;
+            let line_idx = i as isize;
             let column = line.len();
 
             let cursor_position = Point { row, column };
@@ -125,27 +142,35 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 continue;
             }
 
-            let current_node = match nodes_queue.front() {
-                Some(node) => node,
+            let (current_node, (row, from, to)) = match nodes_queue.front() {
+                Some(item) => item,
                 None => panic!("Failed to retrieve treesitter node from queue"),
             };
 
-            let indent_size = indentation_context.len();
-            let comment_line: String = indent_comment_pool[indent_size].clone();
-
-            if line == comment_line {
-                continue;
-            }
+            let mut symbol_name_with_context = String::new();
 
             let mut pop_node = false;
 
             match Range::from_node(*current_node) {
-                node_range if cursor_position.is_member_of(node_range) => {
+                node_range if cursor_position.is_member_of(node_range) => {           
                     let node_type = current_node.kind();
                     if node_type == self.decorator_node_type() {
                         pending_queue.push_back(line);
                     } else {
-                        writer_queue.push_back(comment_line);
+                        for (node, node_symbol) in indentation_context.iter() {
+                            symbol_name_with_context.push_str(&format!("{} > ", node_symbol).to_string());
+                        }
+
+                        let node_symbol_with_indent = &lines[*row];
+                        let node_symbol = &node_symbol_with_indent[from.to_owned()..to.to_owned()];
+                        symbol_name_with_context.push_str(node_symbol);
+
+                        let indent_size = indentation_context.len();
+                        let comment_line: String = format!("{} {}", indent_comment_pool[indent_size].clone(), symbol_name_with_context);
+
+                        if latest_comment_line != comment_line {
+                            writer_queue.push_back(comment_line);
+                        }
                         if !pending_queue.is_empty() {
                             while !pending_queue.is_empty() {
                                 if let Some(queued_line) = pending_queue.pop_front() {
@@ -158,7 +183,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
                     }
 
                     if !indentation_context.is_empty() {
-                        if let Some(current_context) = indentation_context.back() {
+                        if let Some((current_context, _)) = indentation_context.back() {
                             if cursor_position.row >= current_context.end_position().row {
                                 indentation_context.pop_back();
                             }
@@ -166,7 +191,8 @@ impl<'tree> Traversable<'tree> for Analyzer {
                     }
 
                     if nested_traversable_symbols.contains(&node_type) {
-                        indentation_context.push_back(*current_node);
+                        let (_, from, to) = current_node.identifier_range();
+                        indentation_context.push_back((*current_node, line[from.to_owned()..to.to_owned()].to_string()));
                         pop_node = true;
                     }
 
@@ -180,11 +206,21 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 }
                 _ => {
                     if !indentation_context.is_empty() {
-                        if let Some(current_context) = indentation_context.back() {
+                        if let Some((current_context, _)) = indentation_context.back() {
                             if cursor_position.row >= current_context.end_position().row {
                                 indentation_context.pop_back();
                             }
                         }
+                    }
+
+                    if line == latest_comment_line && latest_comment_line_index == line_idx - 1 {
+                        continue;
+                    }
+
+                    let indentation_level = indentation_context.len();
+                    if line.starts_with(&indent_comment_pool[indentation_level]) {
+                        latest_comment_line = line;
+                        latest_comment_line_index = line_idx;
                     }
                     writer_queue.push_back(line.to_owned());
                 }
@@ -197,7 +233,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
     /// This methods collects treesitter nodes with BFS
     ///
     /// All of tree sitter nodes are ordered by non decreasing order
-    fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<Node<'tree>> {
+    fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
         let mut deq = VecDeque::new();
         let whitelist = self.get_annotation_whitelist();
         let nested_traversable_symbols = self.get_nested_traversable_symbols();
@@ -209,7 +245,8 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 let node_type = node.kind();
 
                 if whitelist.contains(&node_type) {
-                    result.push(node);
+                    let identifier_range = node.identifier_range();
+                    result.push((node, identifier_range));
                 }
 
                 if !nested_traversable_symbols.contains(&node_type)
@@ -235,7 +272,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
             }
         }
 
-        result.sort_by(|u, v| u.start_position().row.cmp(&v.start_position().row));
+        result.sort_by(|(u,_), (v,_)| u.start_position().row.cmp(&v.start_position().row));
 
         result.to_owned()
     }
