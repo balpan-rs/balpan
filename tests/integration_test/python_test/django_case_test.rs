@@ -15,13 +15,13 @@ mod django_case_test {
                 ordering = (\"name\",)"};
 
         let result = indoc! {"
-        # [TODO]
+        # [TODO] Car
         class Car(models.Model):
             name = models.CharField(max_length=20)
             default_parts = models.ManyToManyField(Part)
             optional_parts = models.ManyToManyField(Part, related_name=\"cars_optional\")
 
-            # [TODO]
+            # [TODO] Car > Meta
             class Meta:
                 ordering = (\"name\",)"};
 
@@ -44,16 +44,16 @@ mod django_case_test {
                 return True"};
 
         let result = indoc! {"      
-        # [TODO]
+        # [TODO] Choices
         class Choices(enum.Enum, metaclass=ChoicesMeta):
             \"\"\"Class for creating enumerated choices.\"\"\"
 
-            # [TODO]
+            # [TODO] Choices > label
             @DynamicClassAttribute
             def label(self):
                 return self._label_
 
-            # [TODO]
+            # [TODO] Choices > do_not_call_in_templates
             @property
             def do_not_call_in_templates(self):
                 return True"};

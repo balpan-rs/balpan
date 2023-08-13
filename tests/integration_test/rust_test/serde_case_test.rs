@@ -25,25 +25,25 @@ mod serde_case_test {
         }"};
 
         let result = indoc! {"
-        /// [TODO]
+        /// [TODO] PartialEq<Symbol>
         impl PartialEq<Symbol> for Ident {
-            /// [TODO]
+            /// [TODO] PartialEq<Symbol> > eq
             fn eq(&self, word: &Symbol) -> bool {
                 self == word.0
             }
         }
 
-        /// [TODO]
+        /// [TODO] PartialEq<Symbol>
         impl<'a> PartialEq<Symbol> for &'a Ident {
-            /// [TODO]
+            /// [TODO] PartialEq<Symbol> > eq
             fn eq(&self, word: &Symbol) -> bool {
                 *self == word.0
             }
         }
 
-        /// [TODO]
+        /// [TODO] PartialEq<Symbol>
         impl PartialEq<Symbol> for Path {
-            /// [TODO]
+            /// [TODO] PartialEq<Symbol> > eq
             fn eq(&self, word: &Symbol) -> bool {
                 self.is_ident(word.0)
             }

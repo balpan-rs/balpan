@@ -57,11 +57,11 @@ mod rustpython_case_test {
                     pass"};
 
         let result = indoc! {"
-        # [TODO]
+        # [TODO] FeedParser
         class FeedParser:
             \"\"\"A feed-style parser of email.\"\"\"
 
-            # [TODO]
+            # [TODO] FeedParser > __init__
             def __init__(self, _factory=None, *, policy=compat32):
                 \"\"\"_factory is called with no arguments to create a new message obj
 
@@ -93,17 +93,17 @@ mod rustpython_case_test {
                 self._headersonly = False
                 
             # Non-public interface for supporting Parser's headersonly flag
-            # [TODO]
+            # [TODO] FeedParser > _set_headersonly
             def _set_headersonly(self):
                 self._headersonly = True
 
-            # [TODO]
+            # [TODO] FeedParser > feed
             def feed(self, data):
                 \"\"\"Push more data into the parser.\"\"\"
                 self._input.push(data)
                 self._call_parse()
 
-            # [TODO]
+            # [TODO] FeedParser > _call_parse
             def _call_parse(self):
                 try:
                     self._parse()

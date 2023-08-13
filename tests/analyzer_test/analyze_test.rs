@@ -42,7 +42,7 @@ mod analyze_test {
             }"};
 
         let result = indoc! {"
-            /// [TODO]
+            /// [TODO] List
             #[derive(Deserialize)]
             #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
             struct List<T> {
@@ -56,7 +56,7 @@ mod analyze_test {
     #[test]
     fn test_idempotency() {
         let source_code = indoc! {"
-            /// [TODO]
+            /// [TODO] List
             #[derive(Deserialize)]
             #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
             struct List<T> {
@@ -65,7 +65,7 @@ mod analyze_test {
             }"};
 
         let result = indoc! {"
-            /// [TODO]
+            /// [TODO] List
             #[derive(Deserialize)]
             #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
             struct List<T> {
@@ -79,72 +79,72 @@ mod analyze_test {
     #[test]
     fn test_idempotency_within_nested_scope() {
         let source_code = indoc! {"
-            # [TODO]
+            # [TODO] Post
             class Post(models.Model):
                 user = models.ForeignKey(User)
 
-                # [TODO]
+                # [TODO] Post > Meta
                 class Meta:
                     table_name = 'posts'
 
-                # [TODO]
+                # [TODO] Post > count
                 @staticmethod
                 def count(cls):
                     return cls.count
 
-                # [TODO]
-                def get_author(self):
+                # [TODO] Post > author
+                def author(self):
                     return self.user
                     
-            # [TODO]
+            # [TODO] Comment
             class Comment(models.Model):
                 user = models.ForeignKey(User)
 
-                # [TODO]
+                # [TODO] Comment > Meta
                 class Meta:
                     table_name = 'comments'
 
-                # [TODO]
+                # [TODO] Comment > count
                 @staticmethod
                 def count(cls):
                     return cls.count
 
-                # [TODO]
+                # [TODO] Comment > author
                 def author(self):
                     return self.user"};
 
         let result = indoc! {"
-            # [TODO]
+            # [TODO] Post
             class Post(models.Model):
                 user = models.ForeignKey(User)
 
-                # [TODO]
+                # [TODO] Post > Meta
                 class Meta:
                     table_name = 'posts'
 
-                # [TODO]
+                # [TODO] Post > count
                 @staticmethod
                 def count(cls):
                     return cls.count
 
-                # [TODO]
-                def get_author(self):
+                # [TODO] Post > author
+                def author(self):
                     return self.user
                     
-            # [TODO]
+            # [TODO] Comment
             class Comment(models.Model):
                 user = models.ForeignKey(User)
 
-                # [TODO]
+                # [TODO] Comment > Meta
                 class Meta:
                     table_name = 'comments'
 
-                # [TODO]
+                # [TODO] Comment > count
                 @staticmethod
                 def count(cls):
                     return cls.count
 
-                # [TODO]
+                # [TODO] Comment > author
                 def author(self):
                     return self.user"};
 
@@ -165,12 +165,12 @@ mod analyze_test {
             }"};
 
         let result = indoc! {"
-            /// [TODO]
+            /// [TODO] tests
             #[cfg(test)]
             mod tests {
                 use super::*;
 
-                /// [TODO]
+                /// [TODO] tests > test_foo
                 #[test]
                 fn test_foo() {
                     assert_eq!(foo(), 1);
@@ -189,7 +189,7 @@ mod analyze_test {
             }"};
 
         let result = indoc! {"
-            /// [TODO]
+            /// [TODO] foo
             #[doc = \"This is a doc comment\"]
             fn foo() {
                 println!(\"foo\");
@@ -218,14 +218,14 @@ mod analyze_test {
         }"};
 
         let result = indoc! { "
-        /// [TODO]
+        /// [TODO] RangeFactory
         pub trait RangeFactory {
             fn from_node(node: Node) -> Range;
         }
 
-        /// [TODO]
+        /// [TODO] RangeFactory
         impl RangeFactory for Range {
-            /// [TODO]
+            /// [TODO] RangeFactory > from_node
             #[inline]
             fn from_node(node: Node) -> Range {
                 Range {
@@ -262,16 +262,16 @@ mod analyze_test {
         }"};
 
         let result = indoc! { "
-        /// [TODO]
+        /// [TODO] tree_sitter_extended
         mod tree_sitter_extended {
-            /// [TODO]
+            /// [TODO] tree_sitter_extended > RangeFactory
             pub trait RangeFactory {
                 fn from_node(node: Node) -> Range;
             }
 
-            /// [TODO]
+            /// [TODO] tree_sitter_extended > RangeFactory
             impl RangeFactory for Range {
-                /// [TODO]
+                /// [TODO] tree_sitter_extended > RangeFactory > from_node
                 #[inline]
                 fn from_node(node: Node) -> Range {
                     Range {

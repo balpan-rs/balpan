@@ -22,7 +22,7 @@ mod anyhow_case_test {
         let result = indoc! {"
         use thiserror::Error;
 
-        /// [TODO]
+        /// [TODO] FormatError
         #[derive(Error, Debug)]
         pub enum FormatError {
             #[error(\"Invalid header (expected {expected:?}, got {found:?})\")]

@@ -13,7 +13,7 @@ mod python_dependency_injector_case_test {
             return jsonify({\"result\": result})"};
         
         let result = indoc! {"
-        # [TODO]
+        # [TODO] index
         @app.route(\"/\")
         @inject
         def index(service: Service = Provide[Container.service]):
@@ -41,7 +41,7 @@ mod python_dependency_injector_case_test {
             return resource1, resource2"};
 
         let result = indoc! {"      
-        # [TODO]
+        # [TODO] async_injection
         @inject
         async def async_injection(
                 resource1: object = Provide[\"resource1\"],
@@ -49,7 +49,7 @@ mod python_dependency_injector_case_test {
         ):
             return resource1, resource2
 
-        # [TODO]
+        # [TODO] async_injection_with_closing
         @inject
         async def async_injection_with_closing(
                 resource1: object = Closing[Provide[\"resource1\"]],
