@@ -133,6 +133,10 @@ impl<'tree> Traversable<'tree> for Analyzer {
             let indent_size = indentation_context.len();
             let comment_line: String = indent_comment_pool[indent_size].clone();
 
+            if line == comment_line {
+                continue;
+            }
+
             let mut pop_node = false;
 
             match Range::from_node(*current_node) {

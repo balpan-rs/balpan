@@ -54,6 +54,104 @@ mod analyze_test {
     }
 
     #[test]
+    fn test_idempotency() {
+        let source_code = indoc! {"
+            /// [TODO]
+            #[derive(Deserialize)]
+            #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
+            struct List<T> {
+                #[serde(deserialize_with = \"deserialize_vec\")]
+                items: Vec<T>,
+            }"};
+
+        let result = indoc! {"
+            /// [TODO]
+            #[derive(Deserialize)]
+            #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
+            struct List<T> {
+                #[serde(deserialize_with = \"deserialize_vec\")]
+                items: Vec<T>,
+            }"};
+
+        assert_analyzed_source_code(source_code, result, "rust")
+    }
+
+    #[test]
+    fn test_idempotency_within_nested_scope() {
+        let source_code = indoc! {"
+            # [TODO]
+            class Post(models.Model):
+                user = models.ForeignKey(User)
+
+                # [TODO]
+                class Meta:
+                    table_name = 'posts'
+
+                # [TODO]
+                @staticmethod
+                def count(cls):
+                    return cls.count
+
+                # [TODO]
+                def get_author(self):
+                    return self.user
+                    
+            # [TODO]
+            class Comment(models.Model):
+                user = models.ForeignKey(User)
+
+                # [TODO]
+                class Meta:
+                    table_name = 'comments'
+
+                # [TODO]
+                @staticmethod
+                def count(cls):
+                    return cls.count
+
+                # [TODO]
+                def author(self):
+                    return self.user"};
+
+        let result = indoc! {"
+            # [TODO]
+            class Post(models.Model):
+                user = models.ForeignKey(User)
+
+                # [TODO]
+                class Meta:
+                    table_name = 'posts'
+
+                # [TODO]
+                @staticmethod
+                def count(cls):
+                    return cls.count
+
+                # [TODO]
+                def get_author(self):
+                    return self.user
+                    
+            # [TODO]
+            class Comment(models.Model):
+                user = models.ForeignKey(User)
+
+                # [TODO]
+                class Meta:
+                    table_name = 'comments'
+
+                # [TODO]
+                @staticmethod
+                def count(cls):
+                    return cls.count
+
+                # [TODO]
+                def author(self):
+                    return self.user"};
+
+        assert_analyzed_source_code(source_code, result, "python")
+    }
+
+    #[test]
     fn test_ignore_todo_test_macro() {
         let source_code = indoc! {"
             #[cfg(test)]
