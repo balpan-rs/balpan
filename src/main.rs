@@ -33,7 +33,7 @@ fn find_branch<'a, 'b>(repository: &'b Repository,target: &'a str) -> &'a str {
 fn main() {
     let matches = 
         Command::new("balpan")
-            .version("0.1.0")
+            .version("0.2.0")
             .author("Jaeyeol Lee <rijgndqw012@gmail.com>")
             .about("Balpan CLI automatically generates TODO comments above definition of function/method/class/module and so on.")
             .subcommand_required(true)
