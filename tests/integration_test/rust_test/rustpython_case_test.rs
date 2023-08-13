@@ -27,7 +27,7 @@ mod rustpython_case_test {
         }"};
 
         let result = indoc! {"
-        /// [TODO]
+        /// [TODO] JitCompileError
         #[derive(Debug, thiserror::Error)]
         #[non_exhaustive]
         pub enum JitCompileError {
@@ -39,7 +39,7 @@ mod rustpython_case_test {
             CraneliftError(#[from] ModuleError),
         }
 
-        /// [TODO]
+        /// [TODO] JitArgumentError
         #[derive(Debug, thiserror::Error, Eq, PartialEq)]
         #[non_exhaustive]
         pub enum JitArgumentError {
