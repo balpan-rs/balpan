@@ -27,19 +27,14 @@ impl Scanner {
                 }
                 let path = Path::new(&filename);
                 let language = match path.extension() {
-                    Some(os_str) => {
-                        match os_str.to_str() {
-                            Some("rs") => "rust",
-                            Some("py") => "python",
-                            _ => "",
-                        }
-                    },
-                    _ => "",
+                    Some(os_str) => Language::from_extension(os_str.to_str().unwrap()),
+                    _ => Language::Other("".to_string()),
                 };
 
-                if !vec!["python", "rust"].contains(&language) {
-                    continue;
-                }
+                match language {
+                    Language::Other(_) => continue,
+                    _ => {}
+                };
 
                 if let Ok(mut file) = File::options().read(true).write(true).open(path) {
                     let mut source_code = String::new();
