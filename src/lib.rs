@@ -1,12 +1,12 @@
-// This is referred from the helix codebase: 
-// https://github.com/helix-editor/helix/blob/master/helix-loader/src/lib.rs 
+// This is referred from the helix codebase:
+// https://github.com/helix-editor/helix/blob/master/helix-loader/src/lib.rs
+pub mod analyzer;
 pub mod config;
 pub mod grammar;
-pub mod scanner;
-pub mod analyzer;
-pub mod utils;
-pub mod tree_sitter_extended;
 pub mod language;
+pub mod scanner;
+pub mod tree_sitter_extended;
+pub mod utils;
 
 use etcetera::base_strategy::{choose_base_strategy, BaseStrategy};
 use std::path::{Path, PathBuf};

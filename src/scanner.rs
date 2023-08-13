@@ -1,14 +1,13 @@
 use std::fs::File;
-use std::io::{Read, Write, Seek};
+use std::io::{Read, Seek, Write};
 use std::path::Path;
 
 use git2::Repository;
 
-use crate::grammar::{fetch_grammars, build_grammars};
-use crate::utils::list_available_files;
 use crate::analyzer::{Analyzer, Traversable};
+use crate::grammar::{build_grammars, fetch_grammars};
 use crate::language::Language;
-
+use crate::utils::list_available_files;
 
 pub struct Scanner;
 
@@ -31,17 +30,21 @@ impl Scanner {
                     _ => Language::Other("".to_string()),
                 };
 
-                match language {
-                    Language::Other(_) => continue,
-                    _ => {}
-                };
+                // match language {
+                //     Language::Other(_) => continue,
+                //     _ => {}
+                // };
+
+                if let Language::Other(_) = language {
+                    continue;
+                }
 
                 if let Ok(mut file) = File::options().read(true).write(true).open(path) {
                     let mut source_code = String::new();
-                    file.read_to_string(&mut source_code);
+                    file.read_to_string(&mut source_code).unwrap();
                     let analyzer = Analyzer {
                         source_code,
-                        language: Language::from(language),
+                        language: language,
                     };
 
                     let writer_queue = &analyzer.analyze();
@@ -56,7 +59,6 @@ impl Scanner {
                     file.write_all(lines.join("\n").as_bytes()).unwrap();
                 }
             }
-
         }
     }
 }

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod django_case_test {
-    use indoc::indoc;
     use crate::integration_test::assert_analyzed_source_code;
+    use indoc::indoc;
 
     #[test]
     fn test_class_definition_within_class() {
@@ -28,10 +28,9 @@ mod django_case_test {
         assert_analyzed_source_code(source_code, result, "python")
     }
 
-
     #[test]
     fn test_decorated_definitions_within_class_definition() {
-        let source_code = indoc! {"      
+        let source_code = indoc! {"
         class Choices(enum.Enum, metaclass=ChoicesMeta):
             \"\"\"Class for creating enumerated choices.\"\"\"
 
@@ -43,7 +42,7 @@ mod django_case_test {
             def do_not_call_in_templates(self):
                 return True"};
 
-        let result = indoc! {"      
+        let result = indoc! {"
         # [TODO] Choices
         class Choices(enum.Enum, metaclass=ChoicesMeta):
             \"\"\"Class for creating enumerated choices.\"\"\"

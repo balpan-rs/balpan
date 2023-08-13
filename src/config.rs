@@ -1,5 +1,5 @@
-// This is referred from the helix codebase: 
-// https://github.com/helix-editor/helix/blob/master/helix-loader/src/config.rs 
+// This is referred from the helix codebase:
+// https://github.com/helix-editor/helix/blob/master/helix-loader/src/config.rs
 use std::str::from_utf8;
 
 /// Default built-in languages.toml.

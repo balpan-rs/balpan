@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod rustpython_case_test {
-    use indoc::indoc;
     use crate::integration_test::assert_analyzed_source_code;
+    use indoc::indoc;
 
     /// Test stdlib
     ///
