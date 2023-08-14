@@ -96,6 +96,7 @@ dependencies = [
  "log",
  "once_cell",
  "serde",
+ "strsim",
  "tempfile",
  "threadpool",
  "toml",
