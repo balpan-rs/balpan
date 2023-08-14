@@ -38,27 +38,6 @@ fn main() {
     }
 }
 
-fn git(args: Vec<String>) {
-    std::process::Command::new("git")
-        .args(args)
-        .output()
-        .unwrap();
-}
-
-fn find_branch<'a>(repository: &Repository, target: &'a str) -> Option<&'a str> {
-    let mut iter = repository.branches(None);
-
-    while let Some(Ok((branch, _))) = &iter.as_mut().expect("???").next() {
-        if let Ok(Some(branch_name)) = branch.name() {
-            if target == branch_name {
-                return Some(target);
-            }
-        }
-    }
-
-    None
-}
-
 fn find_main_or_master_branch<'a>(repo: &'a Repository, branches: &[&'a str]) -> String {
     if branches.is_empty() {
         panic!("No main or master branch found");
