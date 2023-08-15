@@ -84,7 +84,11 @@ impl ResolveSymbol for Node<'_> {
 
         // case of impl_item
         if self.kind() == "impl_item" {
-            node = self.child_by_field_name("trait");
+            node = self.child_by_field_name("trait"); // impl Foo for Bar
+            node = match node {
+                None => self.child_by_field_name("type"), // impl Foo
+                result => result,
+            }
         }
 
         let identifier_node = node.unwrap();
