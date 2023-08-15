@@ -5,6 +5,7 @@ use tree_sitter::{Node, Parser, Point, Range, Tree};
 
 use crate::grammar::get_language;
 use crate::language::Language;
+use crate::tokens::CommentToken;
 use crate::tree_sitter_extended::{MembershipCheck, RangeFactory, ResolveSymbol};
 
 pub struct Analyzer {
@@ -21,11 +22,14 @@ pub trait Traversable<'tree> {
 
 impl<'tree> Traversable<'tree> for Analyzer {
     fn get_indent_comment_pool(&self) -> Vec<String> {
-        let comment = match self.language {
-            Language::Rust => "/// [TODO]",
-            Language::Python => "# [TODO]",
-            _ => "//",
-        };
+        // let comment = match self.language {
+        //     Language::Rust => "/// [TODO]",
+        //     Language::Python => "# [TODO]",
+        //     _ => "//",
+        // };
+
+        let comment_token = CommentToken::from_language(&self.language);
+        let comment = comment_token.to_str();
         let ident = "    ";
         let max_ident_level = 100;
 
