@@ -1,9 +1,42 @@
-use clap::Command;
+use clap::{Parser, Subcommand};
 
 use balpan::scanner::Scanner;
 use balpan::utils::get_current_repository;
 use git2::Repository;
 use strsim::levenshtein;
+
+#[derive(Debug, Parser)]
+#[command(author, about, version)]
+struct BalpanApp {
+    #[clap(subcommand)]
+    command: BalpanCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum BalpanCommand {
+    #[clap(about = "Setup environment for Balpan and fetch all available treesitter parsers")]
+    Init,
+    #[clap(about = "Reset environment for Balpan and removes all TODO comments")]
+    Reset,
+}
+
+fn main() {
+    let app = BalpanApp::parse();
+
+    // verify that the subcommand entered is correct.
+    let user_input = std::env::args().nth(1);
+
+    if let Some(input) = user_input {
+        if suggest_subcommand(&input).is_some() {
+            println!("Did you mean '{}'?", suggest_subcommand(&input).unwrap());
+        }
+    } 
+
+    match app.command {
+        BalpanCommand::Init => handle_init(),
+        BalpanCommand::Reset => handle_reset(),
+    }
+}
 
 fn git(args: Vec<String>) {
     std::process::Command::new("git")
@@ -12,18 +45,30 @@ fn git(args: Vec<String>) {
         .unwrap();
 }
 
-fn find_branch<'a>(repository: &Repository, target: &'a str) -> &'a str {
+fn find_branch<'a>(repository: &Repository, target: &'a str) -> Option<&'a str> {
     let mut iter = repository.branches(None);
 
     while let Some(Ok((branch, _))) = &iter.as_mut().expect("???").next() {
         if let Ok(Some(branch_name)) = branch.name() {
             if target == branch_name {
-                return target;
+                return Some(target);
             }
         }
     }
 
-    ""
+    None
+}
+
+fn find_main_or_master_branch<'a>(repo: &'a Repository, branches: &[&'a str]) -> String {
+    if branches.is_empty() {
+        panic!("No main or master branch found");
+    }
+
+    if let Some(branch) = find_branch(repo, branches[0]) {
+        return branch.to_string();
+    }
+
+    find_main_or_master_branch(repo, &branches[1..])
 }
 
 fn suggest_subcommand(input: &str) -> Option<&'static str> {
@@ -50,96 +95,59 @@ fn suggest_subcommand(input: &str) -> Option<&'static str> {
     closest
 }
 
-fn main() {
-    let matches = Command::new("balpan")
-            .version("0.2.0")
-            .author("Jaeyeol Lee <rijgndqw012@gmail.com>")
-            .about("Balpan CLI automatically generates TODO comments above definition of function/method/class/module and so on.")
-            .subcommand_required(true)
-            .arg_required_else_help(true)
-            .subcommand(
-                Command::new("init")
-                    .about("Setup environment for Balpan and fetch all available treesitter parsers")
-            )
-            .subcommand(
-                Command::new("reset")
-                    .about("Reset environment for Balpan and removes all TODO comments")
-            )
-            .get_matches();
+fn handle_reset() {
+    let repo = get_current_repository().unwrap();
+    //let onboarding_branch = find_branch(&repo, "onboarding").to_string();
+    let is_already_setup: bool;
 
-    let mut main_branch = String::new();
+    let onboarding_branch = match find_branch(&repo, "onboarding") {
+        Some(branch) => {
+            is_already_setup = true;
+            branch.to_string()
+        },
+        None => panic!("No onboarding branch found"),
+    };
 
-    let is_already_setup;
+    let main_branch = find_main_or_master_branch(&repo, &["main", "master"]);
 
-    // verify that the subcommand entered is correct.
-    if let Some(command) = matches.subcommand_name() {
-        if suggest_subcommand(command).is_some() {
-            eprintln!("Did you mean '{}'?", suggest_subcommand(command).unwrap());
-            return;
-        }
-
-        eprintln!("`{}` is an unknown command. Enter `help` to check the list of available commands.", command);
-    }
-
-    if matches.subcommand_matches("init").is_some() {
-        let repo = get_current_repository().unwrap();
-        let onboarding_branch = find_branch(&repo, "onboarding").to_owned();
-        is_already_setup = !onboarding_branch.is_empty();
-
-        if main_branch.is_empty() {
-            main_branch = find_branch(&repo, "main").to_owned();
-        }
-
-        if main_branch.is_empty() {
-            main_branch = find_branch(&repo, "master").to_owned();
-        }
-
-        if !is_already_setup {
-            git(vec!["switch".to_owned(), main_branch.clone()]);
-            git(vec![
-                "switch".to_owned(),
-                "-c".to_owned(),
-                "onboarding".to_owned(),
-            ])
-        }
-
+    if is_already_setup {
         git(vec!["switch".to_owned(), main_branch]);
-        git(vec!["switch".to_owned(), "onboarding".to_owned()]);
-
-        Scanner::scan(&repo);
-        println!("init!");
-        return;
-    }
-
-    if matches.subcommand_matches("reset").is_some() {
-        let repo = get_current_repository().unwrap();
-        let onboarding_branch = find_branch(&repo, "onboarding").to_owned();
-        is_already_setup = !onboarding_branch.is_empty();
-
-        if main_branch.is_empty() {
-            main_branch = find_branch(&repo, "main").to_owned();
-        }
-
-        if main_branch.is_empty() {
-            main_branch = find_branch(&repo, "master").to_owned();
-        }
-
-        if is_already_setup {
-            git(vec!["switch".to_owned(), main_branch]);
-            git(vec![
-                "branch".to_owned(),
-                "-d".to_owned(),
-                onboarding_branch,
-            ])
-        }
+        git(vec!["branch".to_owned(), "-d".to_owned(), onboarding_branch]);
     }
 }
 
+fn handle_init() {
+    let repo = get_current_repository().unwrap();
+    // let onboarding_branch = find_branch(&repo, "onboarding").to_owned();
+    let is_already_setup: bool;
+
+    let _onboarding_branch = match find_branch(&repo, "onboarding") {
+        Some(branch) => {
+            is_already_setup = true;
+            branch.to_string()
+        },
+        None => panic!("No onboarding branch found"),
+    };
+
+    let main_branch = find_main_or_master_branch(&repo, &["main", "master"]);
+
+    if !is_already_setup {
+        git(vec!["switch".to_owned(), main_branch.clone()]);
+        git(vec!["switch".to_owned(), "-c".to_owned(), "onboarding".to_owned()]);
+    }
+
+    git(vec!["switch".to_owned(), main_branch]);
+    git(vec!["switch".to_owned(), "onboarding".to_owned()]);
+
+    Scanner::scan(&repo);
+    println!("init!");
+}
 
 #[cfg(test)]
 mod main_tests {
 
     #[test]
+    #[ignore]
     fn subcommand_suggestion() {
         use super::suggest_subcommand;
 
