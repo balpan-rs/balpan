@@ -119,14 +119,14 @@ fn handle_reset() {
 fn handle_init() {
     let repo = get_current_repository().unwrap();
     // let onboarding_branch = find_branch(&repo, "onboarding").to_owned();
-    let is_already_setup: bool;
+    let mut is_already_setup: bool = false;
 
     let _onboarding_branch = match find_branch(&repo, "onboarding") {
         Some(branch) => {
             is_already_setup = true;
             branch.to_string()
         },
-        None => panic!("No onboarding branch found"),
+        None => String::new(),
     };
 
     let main_branch = find_main_or_master_branch(&repo, &["main", "master"]);
