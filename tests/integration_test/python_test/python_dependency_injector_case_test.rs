@@ -5,57 +5,57 @@ mod python_dependency_injector_case_test {
 
     #[test]
     fn test_decorated_definition() {
-        let source_code = indoc! {"
-        @app.route(\"/\")
+        let source_code = indoc! {r#"
+        @app.route("/")
         @inject
         def index(service: Service = Provide[Container.service]):
             result = service.process()
-            return jsonify({\"result\": result})"};
+            return jsonify({"result": result})"#};
 
-        let result = indoc! {"
+        let result = indoc! {r#"
         # [TODO] index
-        @app.route(\"/\")
+        @app.route("/")
         @inject
         def index(service: Service = Provide[Container.service]):
             result = service.process()
-            return jsonify({\"result\": result})"};
+            return jsonify({"result": result})"#};
 
         assert_analyzed_source_code(source_code, result, "python")
     }
 
     #[test]
     fn test_decorated_async_function_definition() {
-        let source_code = indoc! {"
+        let source_code = indoc! {r#"
         @inject
         async def async_injection(
-                resource1: object = Provide[\"resource1\"],
-                resource2: object = Provide[\"resource2\"],
+                resource1: object = Provide["resource1"],
+                resource2: object = Provide["resource2"],
         ):
             return resource1, resource2
 
         @inject
         async def async_injection_with_closing(
-                resource1: object = Closing[Provide[\"resource1\"]],
-                resource2: object = Closing[Provide[\"resource2\"]],
+                resource1: object = Closing[Provide["resource1"]],
+                resource2: object = Closing[Provide["resource2"]],
         ):
-            return resource1, resource2"};
+            return resource1, resource2"#};
 
-        let result = indoc! {"
+        let result = indoc! {r#"
         # [TODO] async_injection
         @inject
         async def async_injection(
-                resource1: object = Provide[\"resource1\"],
-                resource2: object = Provide[\"resource2\"],
+                resource1: object = Provide["resource1"],
+                resource2: object = Provide["resource2"],
         ):
             return resource1, resource2
 
         # [TODO] async_injection_with_closing
         @inject
         async def async_injection_with_closing(
-                resource1: object = Closing[Provide[\"resource1\"]],
-                resource2: object = Closing[Provide[\"resource2\"]],
+                resource1: object = Closing[Provide["resource1"]],
+                resource2: object = Closing[Provide["resource2"]],
         ):
-            return resource1, resource2"};
+            return resource1, resource2"#};
 
         assert_analyzed_source_code(source_code, result, "python")
     }

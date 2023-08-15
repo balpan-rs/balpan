@@ -7,18 +7,18 @@ mod rustpython_case_test {
     ///
     #[test]
     fn test_class_definition() {
-        let source_code = indoc! {"
+        let source_code = indoc! {r#"
         class FeedParser:
-            \"\"\"A feed-style parser of email.\"\"\"
+            """A feed-style parser of email."""
 
             def __init__(self, _factory=None, *, policy=compat32):
-                \"\"\"_factory is called with no arguments to create a new message obj
+                """_factory is called with no arguments to create a new message obj
 
                 The policy keyword specifies a policy object that controls a number of
                 aspects of the parser's operation.  The default policy maintains
                 backward compatibility.
 
-                \"\"\"
+                """
                 self.policy = policy
                 self._old_style_factory = False
                 if _factory is None:
@@ -46,7 +46,7 @@ mod rustpython_case_test {
                 self._headersonly = True
 
             def feed(self, data):
-                \"\"\"Push more data into the parser.\"\"\"
+                """Push more data into the parser."""
                 self._input.push(data)
                 self._call_parse()
 
@@ -54,22 +54,22 @@ mod rustpython_case_test {
                 try:
                     self._parse()
                 except StopIteration:
-                    pass"};
+                    pass"#};
 
-        let result = indoc! {"
+        let result = indoc! {r#"
         # [TODO] FeedParser
         class FeedParser:
-            \"\"\"A feed-style parser of email.\"\"\"
+            """A feed-style parser of email."""
 
             # [TODO] FeedParser > __init__
             def __init__(self, _factory=None, *, policy=compat32):
-                \"\"\"_factory is called with no arguments to create a new message obj
+                """_factory is called with no arguments to create a new message obj
 
                 The policy keyword specifies a policy object that controls a number of
                 aspects of the parser's operation.  The default policy maintains
                 backward compatibility.
 
-                \"\"\"
+                """
                 self.policy = policy
                 self._old_style_factory = False
                 if _factory is None:
@@ -99,7 +99,7 @@ mod rustpython_case_test {
 
             # [TODO] FeedParser > feed
             def feed(self, data):
-                \"\"\"Push more data into the parser.\"\"\"
+                """Push more data into the parser."""
                 self._input.push(data)
                 self._call_parse()
 
@@ -108,7 +108,7 @@ mod rustpython_case_test {
                 try:
                     self._parse()
                 except StopIteration:
-                    pass"};
+                    pass"#};
 
         assert_analyzed_source_code(source_code, result, "python")
     }

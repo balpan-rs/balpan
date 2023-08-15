@@ -5,34 +5,34 @@ mod anyhow_case_test {
 
     #[test]
     fn test_declaring_error_enum_with_macro() {
-        let source_code = indoc! {"
+        let source_code = indoc! {r#"
         use thiserror::Error;
 
         #[derive(Error, Debug)]
         pub enum FormatError {
-            #[error(\"Invalid header (expected {expected:?}, got {found:?})\")]
+            #[error("Invalid header (expected {expected:?}, got {found:?})")]
             InvalidHeader {
                 expected: String,
                 found: String,
             },
-            #[error(\"Missing attribute: {0}\")]
+            #[error("Missing attribute: {0}")]
             MissingAttribute(String),
-        }"};
+        }"#};
 
-        let result = indoc! {"
+        let result = indoc! {r#"
         use thiserror::Error;
 
         /// [TODO] FormatError
         #[derive(Error, Debug)]
         pub enum FormatError {
-            #[error(\"Invalid header (expected {expected:?}, got {found:?})\")]
+            #[error("Invalid header (expected {expected:?}, got {found:?})")]
             InvalidHeader {
                 expected: String,
                 found: String,
             },
-            #[error(\"Missing attribute: {0}\")]
+            #[error("Missing attribute: {0}")]
             MissingAttribute(String),
-        }"};
+        }"#};
 
         assert_analyzed_source_code(source_code, result, "rust")
     }

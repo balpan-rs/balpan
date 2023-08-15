@@ -32,45 +32,45 @@ mod analyze_test {
 
     #[test]
     fn test_stacked_macros() {
-        let source_code = indoc! {"
+        let source_code = indoc! {r#"
             #[derive(Deserialize)]
-            #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
+            #[serde(bound(deserialize = "T: Deserialize<'de>"))]
             struct List<T> {
-                #[serde(deserialize_with = \"deserialize_vec\")]
+                #[serde(deserialize_with = "deserialize_vec")]
                 items: Vec<T>,
-            }"};
+            }"#};
 
-        let result = indoc! {"
+        let result = indoc! {r#"
             /// [TODO] List
             #[derive(Deserialize)]
-            #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
+            #[serde(bound(deserialize = "T: Deserialize<'de>"))]
             struct List<T> {
-                #[serde(deserialize_with = \"deserialize_vec\")]
+                #[serde(deserialize_with = "deserialize_vec")]
                 items: Vec<T>,
-            }"};
+            }"#};
 
         assert_analyzed_source_code(source_code, result, "rust")
     }
 
     #[test]
     fn test_idempotency() {
-        let source_code = indoc! {"
+        let source_code = indoc! {r#"
             /// [TODO] List
             #[derive(Deserialize)]
-            #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
+            #[serde(bound(deserialize = "T: Deserialize<'de>"))]
             struct List<T> {
-                #[serde(deserialize_with = \"deserialize_vec\")]
+                #[serde(deserialize_with = "deserialize_vec")]
                 items: Vec<T>,
-            }"};
+            }"#};
 
-        let result = indoc! {"
+        let result = indoc! {r#"
             /// [TODO] List
             #[derive(Deserialize)]
-            #[serde(bound(deserialize = \"T: Deserialize<'de>\"))]
+            #[serde(bound(deserialize = "T: Deserialize<'de>"))]
             struct List<T> {
-                #[serde(deserialize_with = \"deserialize_vec\")]
+                #[serde(deserialize_with = "deserialize_vec")]
                 items: Vec<T>,
-            }"};
+            }"#};
 
         assert_analyzed_source_code(source_code, result, "rust")
     }
@@ -181,18 +181,18 @@ mod analyze_test {
 
     #[test]
     fn test_ignore_doc_macro() {
-        let source_code = indoc! {"
-            #[doc = \"This is a doc comment\"]
+        let source_code = indoc! {r#"
+            #[doc = "This is a doc comment"]
             fn foo() {
-                println!(\"foo\");
-            }"};
+                println!("foo");
+            }"#};
 
-        let result = indoc! {"
+        let result = indoc! {r#"
             /// [TODO] foo
-            #[doc = \"This is a doc comment\"]
+            #[doc = "This is a doc comment"]
             fn foo() {
-                println!(\"foo\");
-            }"};
+                println!("foo");
+            }"#};
 
         assert_analyzed_source_code(source_code, result, "rust")
     }
