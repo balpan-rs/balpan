@@ -48,13 +48,32 @@ impl Language {
         }
     }
 
-    pub fn annotation_whitelist(&self) -> Vec<&str> {
+    pub fn scannable_node_types(&self) -> Vec<&str> {
+        let mut scannable = self.ignorable_node_types();
+        let mut commentable = self.commentable_node_types();
+        scannable.append(&mut commentable);
+        scannable
+    }
+
+    pub fn ignorable_node_types(&self) -> Vec<&str> {
+        match self {
+            Language::Rust => vec![
+                "type_item",
+                "static_item",
+                "extern_crate_declaration",
+                "const_item",
+                "use_declaration",
+            ],
+            _ => vec![]
+        }
+    }
+
+    pub fn commentable_node_types(&self) -> Vec<&str> {
         match self {
             Language::Rust => vec![
                 "attribute_item",
                 "mod_item",
                 "enum_item",
-                "type_item",
                 "impl_item",
                 "function_item",
                 "struct_item",

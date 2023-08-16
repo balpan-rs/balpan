@@ -17,7 +17,7 @@ pub trait Traversable<'tree> {
     fn get_indent_comment_pool(&self) -> Vec<String>;
     fn analyze(&self) -> VecDeque<String>;
     fn get_syntax_tree(&self) -> Tree;
-    fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))>;
+    fn get_scannable_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))>;
 }
 
 impl<'tree> Traversable<'tree> for Analyzer {
@@ -57,7 +57,9 @@ impl<'tree> Traversable<'tree> for Analyzer {
 
     fn analyze(&self) -> VecDeque<String> {
         let tree = self.get_syntax_tree();
-        let nodes = self.get_whitelist_nodes(&tree);
+        let nodes = self.get_scannable_nodes(&tree);
+
+        let ignorable_node_types = self.language.ignorable_node_types();
 
         let nested_traversable_symbols = self.language.nested_traversable_symbols();
 
@@ -185,9 +187,9 @@ impl<'tree> Traversable<'tree> for Analyzer {
     /// This methods collects treesitter nodes with BFS
     ///
     /// All of tree sitter nodes are ordered by non decreasing order
-    fn get_whitelist_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
+    fn get_scannable_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
         let mut deq = VecDeque::new();
-        let whitelist = self.language.annotation_whitelist();
+        let scannable_node_types = self.language.scannable_node_types();
         let nested_traversable_symbols = self.language.nested_traversable_symbols();
         let mut result = Vec::new();
         deq.push_back(tree.root_node());
@@ -196,7 +198,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
             if let Some(node) = deq.pop_front() {
                 let node_type = node.kind();
 
-                if whitelist.contains(&node_type) {
+                if scannable_node_types.contains(&node_type) {
                     let identifier_range = node.identifier_range();
                     result.push((node, identifier_range));
                 }
