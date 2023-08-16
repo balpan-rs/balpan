@@ -2,6 +2,7 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{self, BufRead};
 
+use balpan::pattern_search::PatternTree;
 use clap::{Parser, Subcommand};
 use serde::{Serialize, Deserialize};
 
@@ -27,6 +28,7 @@ enum BalpanCommand {
     Grep {
         #[clap(short, long, help = "Specific file to scan")]
         file: Option<String>,
+        pattern: Option<Vec<String>>,
     },
 }
 
@@ -57,7 +59,7 @@ fn main() {
     match app.command {
         BalpanCommand::Init => handle_init(),
         BalpanCommand::Reset => handle_reset(),
-        BalpanCommand::Grep { file } => handle_grep(file, &mut GrepReport { items: Vec::new() }),
+        BalpanCommand::Grep { file, pattern } => handle_grep(file, pattern, &mut GrepReport { items: Vec::new() }),
     }
 }
 
@@ -166,25 +168,48 @@ fn handle_init() {
     println!("init!");
 }
 
-fn handle_grep(file: Option<String>, report: &mut GrepReport) {
+fn handle_grep(file: Option<String>, pattern: Option<Vec<String>>, report: &mut GrepReport) {
+    let mut pattern_tree = PatternTree::new();
+    let default_patterns = vec!["[TODO]", "[DONE]"];
+
+    let patterns_to_search = pattern.unwrap_or_else(|| default_patterns.iter().map(|&s| s.to_string()).collect());
+
+    // add patterns to tree
+    patterns_to_search.iter().for_each(|pattern| {
+        pattern_tree.add_pattern(pattern);
+    });
+
+    pattern_tree.build_failure_links();
+
     if let Some(file_path) = file {
         // Scanning specific file
-        grep_file(Path::new(&file_path), report).unwrap();
+        grep_file(Path::new(&file_path), report, &mut pattern_tree, &patterns_to_search).unwrap();
+
     } else {
         // Scanning all files in the repository
         let repo = get_current_repository().unwrap();
         let path = repo.workdir().expect("Failed to load work directory");
-        let mut callback = |p: &Path| grep_file(p, report);
-        visit_dirs(&path, &mut callback).unwrap();
+        let mut callback = |p: &Path| grep_file(p, report, &mut pattern_tree, &patterns_to_search);
+        visit_dirs(path, &mut callback).unwrap();
     }
 }
 
-fn grep_file(path: &Path, report: &mut GrepReport) -> io::Result<()> {
+fn grep_file(path: &Path, report: &mut GrepReport, pattern_tree: &mut PatternTree, patterns: &[String]) -> io::Result<()> {
     if let Ok(file) = File::open(path) {
         let reader = io::BufReader::new(file);
+        let patterns = patterns.iter().map(|s| s.as_str()).collect::<Vec<&str>>();
+
         for (index, line) in reader.lines().enumerate() {
             if let Ok(line) = line {
-                if line.contains("[TODO]") || line.contains("[DONE]") {
+                // if line.contains("[TODO]") || line.contains("[DONE]") {
+                //     report.items.push(GrepItem {
+                //         file: path.display().to_string(),
+                //         line: index + 1,
+                //         content: line,
+                //     });
+                // }
+                let matches = pattern_tree.adaptive_search(&line, &patterns);
+                if !matches.is_empty() {
                     report.items.push(GrepItem {
                         file: path.display().to_string(),
                         line: index + 1,
@@ -250,7 +275,11 @@ mod main_tests {
             items: Vec::new(),
         };
 
-        grep_file(&rust_file, &mut report).unwrap();
+        let mut pattern_tree = PatternTree::new();
+        println!("pass pattern_tree len");
+        let patterns = vec!["[TODO]".to_string()];
+
+        grep_file(&rust_file, &mut report, &mut pattern_tree, &patterns).unwrap();
 
         assert_eq!(report.items.len(), 1);
 
@@ -264,138 +293,138 @@ mod main_tests {
         println!("{}", report_info);
     }
 
-    #[test]
-    #[ignore]
-    fn grep_python_command() {
-        use super::*;
-        use tempfile::tempdir;
+    // #[test]
+    // #[ignore]
+    // fn grep_python_command() {
+    //     use super::*;
+    //     use tempfile::tempdir;
 
-        // Crete temporary directory and rust code file
-        let dir = tempdir().unwrap();
-        let python_file = dir.path().join("dummy.py");
-        std::fs::write(&python_file, r#"
-            # [TODO]
-            class DummyPythonClass:
-                # [TODO]
-                def __init__(self):
-                    print("hello")
+    //     // Crete temporary directory and rust code file
+    //     let dir = tempdir().unwrap();
+    //     let python_file = dir.path().join("dummy.py");
+    //     std::fs::write(&python_file, r#"
+    //         # [TODO]
+    //         class DummyPythonClass:
+    //             # [TODO]
+    //             def __init__(self):
+    //                 print("hello")
                 
-                # [TODO]
-                def foo(self, a, b):
-                    return a + b"#).unwrap();
+    //             # [TODO]
+    //             def foo(self, a, b):
+    //                 return a + b"#).unwrap();
 
-        let mut report = GrepReport {
-            items: Vec::new(),
-        };
+    //     let mut report = GrepReport {
+    //         items: Vec::new(),
+    //     };
 
-        grep_file(&python_file, &mut report).unwrap();
+    //     grep_file(&python_file, &mut report).unwrap();
 
-        assert_eq!(report.items.len(), 3);
+    //     assert_eq!(report.items.len(), 3);
 
-        let item = &report.items[0];
-        assert_eq!(item.file, python_file.display().to_string());
+    //     let item = &report.items[0];
+    //     assert_eq!(item.file, python_file.display().to_string());
 
-        let report_info = serde_json::to_string(&report).unwrap();
-        println!("{}", report_info);
-    }
+    //     let report_info = serde_json::to_string(&report).unwrap();
+    //     println!("{}", report_info);
+    // }
 
-    #[test]
-    #[ignore]
-    fn grep_scan_specific_file() {
-        use super::*;
-        use std::fs::File;
-        use std::io::Write;
-        use tempfile::tempdir;
-        use serde_json::to_string_pretty;
+    // #[test]
+    // #[ignore]
+    // fn grep_scan_specific_file() {
+    //     use super::*;
+    //     use std::fs::File;
+    //     use std::io::Write;
+    //     use tempfile::tempdir;
+    //     use serde_json::to_string_pretty;
 
-        let dir = tempdir().unwrap();
-        let rust_file1 = dir.path().join("dummy1.rs");
-        let rust_file2 = dir.path().join("dummy2.rs");
+    //     let dir = tempdir().unwrap();
+    //     let rust_file1 = dir.path().join("dummy1.rs");
+    //     let rust_file2 = dir.path().join("dummy2.rs");
 
-        {
-            let mut file = File::create(&rust_file1).unwrap();
-            file.write_all(r#"
-            /// [TODO] RangeFactory
-            pub trait RangeFactory {
-                fn from_node(node: Node) -> Range;
-            }
+    //     {
+    //         let mut file = File::create(&rust_file1).unwrap();
+    //         file.write_all(r#"
+    //         /// [TODO] RangeFactory
+    //         pub trait RangeFactory {
+    //             fn from_node(node: Node) -> Range;
+    //         }
     
-            /// [TODO] RangeFactory
-            impl RangeFactory for Range {
-                /// [TODO] RangeFactory > from_node
-                #[inline]
-                fn from_node(node: Node) -> Range {
-                    Range {
-                        start_byte: node.start_byte(),
-                        end_byte: node.end_byte(),
-                        start_point: node.start_position(),
-                        end_point: node.end_position(),
-                    }
-                }
-            }"#.as_bytes()).unwrap();
-        }
+    //         /// [TODO] RangeFactory
+    //         impl RangeFactory for Range {
+    //             /// [TODO] RangeFactory > from_node
+    //             #[inline]
+    //             fn from_node(node: Node) -> Range {
+    //                 Range {
+    //                     start_byte: node.start_byte(),
+    //                     end_byte: node.end_byte(),
+    //                     start_point: node.start_position(),
+    //                     end_point: node.end_position(),
+    //                 }
+    //             }
+    //         }"#.as_bytes()).unwrap();
+    //     }
 
-        {
-            let mut file = File::create(&rust_file2).unwrap();
-            file.write_all(r#"
-            /// [TODO] tree_sitter_extended
-            mod tree_sitter_extended {
-                /// [DONE] tree_sitter_extended > RangeFactory
-                pub trait RangeFactory {
-                    fn from_node(node: Node) -> Range;
-                }
+    //     {
+    //         let mut file = File::create(&rust_file2).unwrap();
+    //         file.write_all(r#"
+    //         /// [TODO] tree_sitter_extended
+    //         mod tree_sitter_extended {
+    //             /// [DONE] tree_sitter_extended > RangeFactory
+    //             pub trait RangeFactory {
+    //                 fn from_node(node: Node) -> Range;
+    //             }
 
-                /// [TODO] tree_sitter_extended > RangeFactory
-                impl RangeFactory for Range {
-                    /// [DONE] tree_sitter_extended > RangeFactory > from_node
-                    #[inline]
-                    fn from_node(node: Node) -> Range {
-                        Range {
-                            start_byte: node.start_byte(),
-                            end_byte: node.end_byte(),
-                            start_point: node.start_position(),
-                            end_point: node.end_position(),
-                        }
-                    }
-                }
-            }"#.as_bytes()).unwrap();
+    //             /// [TODO] tree_sitter_extended > RangeFactory
+    //             impl RangeFactory for Range {
+    //                 /// [DONE] tree_sitter_extended > RangeFactory > from_node
+    //                 #[inline]
+    //                 fn from_node(node: Node) -> Range {
+    //                     Range {
+    //                         start_byte: node.start_byte(),
+    //                         end_byte: node.end_byte(),
+    //                         start_point: node.start_position(),
+    //                         end_point: node.end_position(),
+    //                     }
+    //                 }
+    //             }
+    //         }"#.as_bytes()).unwrap();
 
-            let mut report = GrepReport {
-                items: Vec::new(),
-            };
+    //         let mut report = GrepReport {
+    //             items: Vec::new(),
+    //         };
 
-            // cargo run -- grep -f ../dummy1.rs
-            handle_grep(Some(rust_file1.display().to_string()), &mut report);
+    //         // cargo run -- grep -f ../dummy1.rs
+    //         handle_grep(Some(rust_file1.display().to_string()), &mut report);
 
-            let report_info = to_string_pretty(&report).unwrap();
-            println!("{}", report_info);
+    //         let report_info = to_string_pretty(&report).unwrap();
+    //         println!("{}", report_info);
 
-            // cargo run -- grep -f ../dummy2.rs
-            let mut report = GrepReport {
-                items: Vec::new(),
-            };
+    //         // cargo run -- grep -f ../dummy2.rs
+    //         let mut report = GrepReport {
+    //             items: Vec::new(),
+    //         };
 
-            handle_grep(Some(rust_file2.display().to_string()), &mut report);
+    //         handle_grep(Some(rust_file2.display().to_string()), &mut report);
 
-            let report_info = to_string_pretty(&report).unwrap();
-            println!("{}", report_info);
-        }
-    }
+    //         let report_info = to_string_pretty(&report).unwrap();
+    //         println!("{}", report_info);
+    //     }
+    // }
 
-    #[test]
-    #[ignore]
-    fn grep_scan_all_files() {
-        use crate::{GrepReport, handle_grep};
-        use serde_json::to_string_pretty;
+    // #[test]
+    // #[ignore]
+    // fn grep_scan_all_files() {
+    //     use crate::{GrepReport, handle_grep};
+    //     use serde_json::to_string_pretty;
 
-        let mut report = GrepReport {
-            items: Vec::new(),
-        };
+    //     let mut report = GrepReport {
+    //         items: Vec::new(),
+    //     };
 
-        // cargo run -- grep
-        handle_grep(None, &mut report);
+    //     // cargo run -- grep
+    //     handle_grep(None, &mut report);
 
-        let report_info = to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
-    }
+    //     let report_info = to_string_pretty(&report).unwrap();
+    //     println!("{}", report_info);
+    // }
 }

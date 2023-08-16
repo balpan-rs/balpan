@@ -8,6 +8,7 @@ pub mod scanner;
 pub mod tree_sitter_extended;
 pub mod utils;
 pub mod tokens;
+pub mod pattern_search;
 
 use etcetera::base_strategy::{choose_base_strategy, BaseStrategy};
 use std::path::{Path, PathBuf};
