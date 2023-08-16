@@ -30,7 +30,10 @@ impl<'tree> Traversable<'tree> for Analyzer {
 
         let comment_token = CommentToken::from_language(&self.language);
         let comment = comment_token.to_str();
-        let ident = "    ";
+        let ident = match self.language {
+            Language::Ruby => "  ",
+            _ => "    ",
+        };
         let max_ident_level = 100;
 
         (0..max_ident_level)
@@ -214,6 +217,7 @@ impl<'tree> Traversable<'tree> for Analyzer {
     fn get_scannable_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
         let mut deq = VecDeque::new();
         let scannable_node_types = self.language.scannable_node_types();
+        let commentable_node_types = self.language.commentable_node_types();
         let nested_traversable_symbols = self.language.nested_traversable_symbols();
         let mut result = Vec::new();
         deq.push_back(tree.root_node());
@@ -235,8 +239,21 @@ impl<'tree> Traversable<'tree> for Analyzer {
 
                 let mut cursor = node.walk();
 
-                for child_node in node.children(&mut cursor) {
-                    deq.push_back(child_node);
+                if self.language == Language::Ruby {
+                    if node_type == self.language.top_level_node_type() {
+                        for child_node in node.children(&mut cursor) {
+                            if scannable_node_types.contains(&child_node.kind()) {
+                                deq.push_back(child_node);
+                            }
+                        }
+                        continue;
+                    }
+                } else {
+                    for child_node in node.children(&mut cursor) {
+                        if scannable_node_types.contains(&child_node.kind()) {
+                            deq.push_back(child_node);
+                        }
+                    }
                 }
 
                 cursor.reset(node);
@@ -244,7 +261,9 @@ impl<'tree> Traversable<'tree> for Analyzer {
                 if let Some(body) = node.child_by_field_name("body") {
                     let mut body_cursor = body.walk();
                     for child_node in body.children(&mut body_cursor) {
-                        deq.push_back(child_node);
+                        if scannable_node_types.contains(&child_node.kind()) {
+                            deq.push_back(child_node);
+                        }
                     }
                 }
             }
