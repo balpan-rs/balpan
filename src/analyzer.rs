@@ -100,6 +100,30 @@ impl<'tree> Traversable<'tree> for Analyzer {
             match Range::from_node(*current_node) {
                 node_range if cursor_position.is_member_of(node_range) => {
                     let node_type = current_node.kind();
+
+                    // rust specific code
+                    if node_type == "mod_item" {
+                        if node_range.start_point.row == node_range.end_point.row {
+                            while !pending_queue.is_empty() {
+                                let decorator_line: &str = pending_queue.pop_front().unwrap();
+                                writer_queue.push_back(decorator_line.to_owned());
+                            }
+                            writer_queue.push_back(line.to_owned());
+                            nodes_queue.pop_front();
+                            continue;
+                        }
+                    }
+
+                    if ignorable_node_types.contains(&node_type) {
+                        while !pending_queue.is_empty() {
+                            let decorator_line: &str = pending_queue.pop_front().unwrap();
+                            writer_queue.push_back(decorator_line.to_owned());
+                        }
+                        writer_queue.push_back(line.to_owned());
+                        nodes_queue.pop_front();
+                        continue;
+                    }
+
                     if node_type == self.language.decorator_node_type() {
                         pending_queue.push_back(line);
                     } else {

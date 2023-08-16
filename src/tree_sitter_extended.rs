@@ -74,6 +74,22 @@ impl ResolveSymbol for Node<'_> {
             return (0, 0, 0);
         }
 
+        if self.kind() == "use_declaration" {
+            return (0, 0, 0);
+        }
+
+        if self.kind() == "macro_invocation" {
+            return (0, 0, 0)
+        }
+
+        if self.kind() == "expression_statement" {
+            return (0, 0, 0)
+        }
+
+        if self.kind() == "foreign_mod_item" {
+            return (0, 0, 0)
+        }
+
         let mut node = self.child_by_field_name("name");
 
         // case of decorated_definition
