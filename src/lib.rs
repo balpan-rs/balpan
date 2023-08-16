@@ -4,10 +4,11 @@ pub mod analyzer;
 pub mod config;
 pub mod grammar;
 pub mod language;
+pub mod pattern_search;
 pub mod scanner;
+pub mod tokens;
 pub mod tree_sitter_extended;
 pub mod utils;
-pub mod tokens;
 
 use etcetera::base_strategy::{choose_base_strategy, BaseStrategy};
 use std::path::{Path, PathBuf};
