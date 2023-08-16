@@ -63,6 +63,9 @@ impl Language {
                 "extern_crate_declaration",
                 "const_item",
                 "use_declaration",
+                "expression_statement",
+                "macro_invocation",
+                "foreign_mod_item", // extern "C"
             ],
             _ => vec![]
         }

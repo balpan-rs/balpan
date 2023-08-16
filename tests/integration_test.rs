@@ -25,6 +25,11 @@ mod integration_test {
 
         let actual: String = string_vector.join("\n");
 
+        if actual != expected {
+            println!("expected: {}\n\n", expected);
+            println!("actual: {}\n\n", actual);
+        }
+
         assert_eq!(expected, actual);
     }
 }
