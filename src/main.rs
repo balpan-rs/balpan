@@ -175,9 +175,7 @@ fn handle_grep(file: Option<String>, pattern: Option<Vec<String>>, report: &mut 
     let patterns_to_search = pattern.unwrap_or_else(|| default_patterns.iter().map(|&s| s.to_string()).collect());
 
     // add patterns to tree
-    patterns_to_search.iter().for_each(|pattern| {
-        pattern_tree.add_pattern(pattern);
-    });
+    pattern_tree.add_patterns(&patterns_to_search);
 
     pattern_tree.build_failure_links();
 
@@ -185,42 +183,40 @@ fn handle_grep(file: Option<String>, pattern: Option<Vec<String>>, report: &mut 
         // Scanning specific file
         grep_file(Path::new(&file_path), report, &mut pattern_tree, &patterns_to_search).unwrap();
 
-    } else {
-        // Scanning all files in the repository
-        let repo = get_current_repository().unwrap();
-        let path = repo.workdir().expect("Failed to load work directory");
-        let mut callback = |p: &Path| grep_file(p, report, &mut pattern_tree, &patterns_to_search);
-        visit_dirs(path, &mut callback).unwrap();
     }
+
+    // Scanning all files in the repository
+    let repo = get_current_repository().unwrap();
+    let path = repo.workdir().expect("Failed to load work directory");
+    let mut callback = |p: &Path| grep_file(p, report, &mut pattern_tree, &patterns_to_search);
+    visit_dirs(path, &mut callback).unwrap();
 }
 
 fn grep_file(path: &Path, report: &mut GrepReport, pattern_tree: &mut PatternTree, patterns: &[String]) -> io::Result<()> {
     if let Ok(file) = File::open(path) {
         let reader = io::BufReader::new(file);
-        let patterns = patterns.iter().map(|s| s.as_str()).collect::<Vec<&str>>();
 
         for (index, line) in reader.lines().enumerate() {
             if let Ok(line) = line {
-                // if line.contains("[TODO]") || line.contains("[DONE]") {
-                //     report.items.push(GrepItem {
-                //         file: path.display().to_string(),
-                //         line: index + 1,
-                //         content: line,
-                //     });
-                // }
-                let matches = pattern_tree.adaptive_search(&line, &patterns);
-                if !matches.is_empty() {
-                    report.items.push(GrepItem {
-                        file: path.display().to_string(),
-                        line: index + 1,
-                        content: line,
-                    });
-                }
+                process_line(line, index, path, pattern_tree, patterns, report);
             }
         }
     }
 
     Ok(())
+}
+
+fn process_line(line: String, index: usize, path: &Path, pattern_tree: &mut PatternTree, patterns: &[String], report: &mut GrepReport) {
+    let matches = pattern_tree.adaptive_search(&line, patterns);
+    if matches.is_empty() {
+        return;
+    }
+
+    report.items.push(GrepItem {
+        file: path.display().to_string(),
+        line: index + 1,
+        content: line,
+    });
 }
 
 fn visit_dirs(dir: &Path, callback: &mut dyn for<'a> FnMut(&'a Path) -> io::Result<()>) -> io::Result<()> {
@@ -276,8 +272,7 @@ mod main_tests {
         };
 
         let mut pattern_tree = PatternTree::new();
-        println!("pass pattern_tree len");
-        let patterns = vec!["[TODO]".to_string()];
+        let patterns = vec!["TODO".to_string()];
 
         grep_file(&rust_file, &mut report, &mut pattern_tree, &patterns).unwrap();
 

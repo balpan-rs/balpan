@@ -32,19 +32,23 @@ impl PatternTree {
     /// 
     /// applied strategies using Boyer-Moore for single patterns 
     /// and Commentz-Walter for multiple patterns.
-    pub fn adaptive_search(&mut self, text: &str, patterns: &[&str]) -> Vec<usize> {
+    pub fn adaptive_search(&mut self, text: &str, patterns: &[String]) -> Vec<usize> {
         if patterns.len() == 1 {
             // apply boyer-moore algorithm for single pattern search
-            return self.boyer_moore_search(text, patterns[0]);
+            return self.boyer_moore_search(text, &patterns[0]);
         }
 
         // for multi pattern search
-        patterns.iter().for_each(|pattern| self.add_pattern(pattern));
+        self.add_patterns(patterns);
         self.build_failure_links();
         self.search_pattern(text)
     }
 
-    pub fn add_pattern(&mut self, pattern: &str) {
+    pub fn add_patterns(&mut self, patterns: &[String]) {
+        patterns.iter().for_each(|pat| self.add_single_pattern(pat))
+    }
+
+    fn add_single_pattern(&mut self, pattern: &str) {
         let mut current_node = self.root.clone();
 
         for ch in pattern.chars() {
@@ -122,47 +126,124 @@ impl PatternTree {
     /// Stores where each character in the pattern appears last.
     fn build_bad_character_table(&self, pattern: &str) -> HashMap<char, usize> {
         let mut table: HashMap<char, usize> = HashMap::new();
-
-        for (index, ch) in pattern.chars().enumerate() {
-            table.insert(ch, index);
+        let chars: Vec<char> = pattern.chars().collect();
+        // let pattern_len = pattern.len();
+        let len = chars.len();
+    
+        for i in 0..len {
+            table.insert(chars[i], len - i - 1);
         }
 
         table
     }
 
     fn boyer_moore_search(&self, text: &str, pattern: &str) -> Vec<usize> {
+        if pattern.len() > text.len() {
+            return Vec::new();
+        }
+    
         let mut result: Vec<usize> = Vec::new();
         let bad_character_table = self.build_bad_character_table(pattern);
-        let m = pattern.len();
-        let n = text.len();
+        let pattern_len = pattern.len();
+        let text_len = text.len();
         let pattern_chars: Vec<char> = pattern.chars().collect();
         let text_chars: Vec<char> = text.chars().collect();
-        let mut s = 0; // s is the shift of the pattern with respect to text
-
-        if m > n {
-            return result;
-        }
-
-        while s <= n - m {
-            let mut j = m; // j starts from m, so that when j gets decremented for the first time, it becomes m - 1
+        let mut shift = 0; // Shift of the pattern with respect to the text
     
-            // Keep reducing j while characters of pattern and text are matching at this shift s
-            while j > 0 && pattern_chars[j - 1] == text_chars[s + j - 1] {
+        while shift <= text_len - pattern_len {
+            let mut j = pattern_len; // Start from pattern length
+    
+            // Keep reducing j while characters of pattern and text are matching at this shift
+            while j > 0 && pattern_chars[j - 1] == text_chars[shift + j - 1] {
                 j -= 1;
             }
     
             if j == 0 {
-                result.push(s);
-                s += if s + m < n {
-                    m - bad_character_table.get(&text_chars[s + m]).unwrap_or(&0)
+                result.push(shift);
+                let next_shift = if shift + pattern_len < text_len {
+                    pattern_len - bad_character_table.get(&text_chars[shift + pattern_len]).unwrap_or(&0)
                 } else {
                     1
                 };
+                shift += next_shift;
             } else {
-                s += usize::max(1, (j as isize - *bad_character_table.get(&text_chars[s + j - 1]).unwrap_or(&0) as isize) as usize);
+                let char_shift = (j as isize - *bad_character_table.get(&text_chars[shift + j - 1]).unwrap_or(&0) as isize) as usize;
+                shift += usize::max(1, char_shift);
             }
         }
 
+        println!("shift: {}", shift);
+
         result
+    }
+}
+
+#[cfg(test)]
+mod pattern_search_tests {
+    #[test]
+    fn test_boyer_moore_search() {
+        use super::PatternTree;
+
+        let searcher = PatternTree::new();
+
+        let text = "ABAAABCDABCDABABCD";
+        let pattern = "ABCD";
+        let expected = vec![4, 8, 14];
+        assert_eq!(searcher.boyer_moore_search(text, pattern), expected);
+
+        let pattern_not_found = "XYZ";
+        let expected_empty = Vec::<usize>::new();
+        assert_eq!(searcher.boyer_moore_search(text, pattern_not_found), expected_empty);
+    }
+
+    #[test]
+    fn test_boyer_moore_search_contains_new_line() {
+        use super::PatternTree;
+
+        let searcher = PatternTree::new();
+
+        let text = "ABAA\nABCDABCD\nABABCD\n";
+        let pattern = "ABCD";
+        let expected = vec![5, 9, 16];
+        assert_eq!(searcher.boyer_moore_search(text, pattern), expected);
+    }
+
+    #[test]
+    fn test_boyer_moore_search_slash_character() {
+        use super::PatternTree;
+
+        let searcher = PatternTree::new();
+        let text = r#"
+        /// [TODO] aaa
+        /// some comment
+        struct AAA {
+            field: i32,
+        };
+
+        /// [TODO] bbb
+        /// some comment about bbb
+        fn bbb() {
+            unimplemented!();
+        }"#;
+        let pattern = "[TODO]";
+
+        for (i, line) in text.lines().enumerate() {
+            searcher.boyer_moore_search(line, pattern);
+
+            match i {
+                1 => {
+                    let expected = vec![12];
+                    assert_eq!(searcher.boyer_moore_search(line, pattern), expected);
+                },
+                7 => {
+                    let expected = vec![12];
+                    assert_eq!(searcher.boyer_moore_search(line, pattern), expected);
+                }
+                _ => {
+                    let expected = Vec::<usize>::new();
+                    assert_eq!(searcher.boyer_moore_search(line, pattern), expected);
+                }
+            }
+        }
     }
 }
