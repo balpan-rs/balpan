@@ -42,10 +42,10 @@ impl Scanner {
                 if let Ok(mut file) = File::options().read(true).write(true).open(path) {
                     let mut source_code = String::new();
                     file.read_to_string(&mut source_code).unwrap();
-                    let with_empty_line = source_code.ends_with("\n");
+                    let with_empty_line = source_code.ends_with('\n');
                     let analyzer = Analyzer {
                         source_code,
-                        language: language,
+                        language,
                     };
 
                     let writer_queue = &analyzer.analyze();
