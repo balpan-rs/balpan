@@ -1,6 +1,7 @@
 // This is referred from the helix codebase:
 // https://github.com/helix-editor/helix/blob/master/helix-loader/src/lib.rs
 pub mod analyzer;
+pub mod commands;
 pub mod config;
 pub mod grammar;
 pub mod language;
