@@ -51,7 +51,7 @@ impl<'tree> Analyzer {
         tree.expect("Failed to parsing given source code")
     }
 
-    fn analyze(&self) -> VecDeque<String> {
+    pub fn analyze(&self) -> VecDeque<String> {
         let tree = self.get_syntax_tree();
         let nodes = self.get_scannable_nodes(&tree);
 
@@ -207,10 +207,9 @@ impl<'tree> Analyzer {
     /// This methods collects treesitter nodes with BFS
     ///
     /// All of tree sitter nodes are ordered by non decreasing order
-    fn get_scannable_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
-        let mut deq = VecDeque::new();
+    fn get_scannable_nodes<'b>(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
+        let mut deq: VecDeque<Node<'tree>> = VecDeque::new();
         let scannable_node_types = self.language.scannable_node_types();
-        let commentable_node_types = self.language.commentable_node_types();
         let nested_traversable_symbols = self.language.nested_traversable_symbols();
         let mut result = Vec::new();
         deq.push_back(tree.root_node());
@@ -221,7 +220,7 @@ impl<'tree> Analyzer {
 
                 if scannable_node_types.contains(&node_type) {
                     let identifier_range = node.identifier_range();
-                    result.push((node, identifier_range));
+                    result.push((node.to_owned(), identifier_range));
                 }
 
                 if !nested_traversable_symbols.contains(&node_type)
@@ -229,41 +228,48 @@ impl<'tree> Analyzer {
                 {
                     continue;
                 }
-
-                let mut cursor = node.walk();
-
-                if self.language == Language::Ruby {
-                    if node_type == self.language.top_level_node_type() {
-                        for child_node in node.children(&mut cursor) {
-                            if scannable_node_types.contains(&child_node.kind()) {
-                                deq.push_back(child_node);
-                            }
-                        }
-                        continue;
-                    }
-                } else {
-                    for child_node in node.children(&mut cursor) {
-                        if scannable_node_types.contains(&child_node.kind()) {
-                            deq.push_back(child_node);
-                        }
-                    }
-                }
-
-                cursor.reset(node);
-
-                if let Some(body) = node.child_by_field_name("body") {
-                    let mut body_cursor = body.walk();
-                    for child_node in body.children(&mut body_cursor) {
-                        if scannable_node_types.contains(&child_node.kind()) {
-                            deq.push_back(child_node);
-                        }
-                    }
-                }
+                deq = self.enqueue_child_nodes(deq, &node);
             }
         }
 
         result.sort_by(|(u, _), (v, _)| u.start_position().row.cmp(&v.start_position().row));
 
         result.to_owned()
+    }
+
+    fn enqueue_child_nodes(&self, mut deq: VecDeque<Node<'tree>>, node: &Node<'tree>) -> VecDeque<Node<'tree>> {
+        let mut cursor = node.walk();
+        let scannable_node_types = self.language.scannable_node_types();
+        let node_type = node.kind();
+
+        if self.language == Language::Ruby {
+            if node_type == self.language.top_level_node_type() {
+                for child_node in node.children(&mut cursor) {
+                    if scannable_node_types.contains(&child_node.kind()) {
+                        deq.push_back(child_node);
+                    }
+                }
+                return deq;
+            }
+        } else {
+            for child_node in node.children(&mut cursor) {
+                if scannable_node_types.contains(&child_node.kind()) {
+                    deq.push_back(child_node);
+                }
+            }
+        }
+
+        cursor.reset(*node);
+
+        if let Some(body) = node.child_by_field_name("body") {
+            let mut body_cursor = body.walk();
+            for child_node in body.children(&mut body_cursor) {
+                if scannable_node_types.contains(&child_node.kind()) {
+                    deq.push_back(child_node);
+                }
+            }
+        }
+
+        return deq
     }
 }
