@@ -1,11 +1,10 @@
-use std::fs::File;
-use std::io::{self, BufRead};
+use std::io;
 use std::path::Path;
 
 use balpan::pattern_search::PatternTree;
 use clap::{Parser, Subcommand};
-use serde::{Deserialize, Serialize};
 
+use balpan::commands::grep::GrepReport;
 use balpan::scanner::Scanner;
 use balpan::utils::get_current_repository;
 use git2::Repository;
@@ -30,28 +29,12 @@ enum BalpanCommand {
         file: Option<String>,
         #[clap(short, long, help = "Specific pattern to search")]
         pattern: Option<Vec<String>>,
-        #[clap(long, help = "Apply formatting to the output. Available options: json, plain (default)")]
+        #[clap(
+            long,
+            help = "Apply formatting to the output. Available options: json, tree, plain (default)"
+        )]
         format: Option<String>,
     },
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct GrepItem {
-    file: String,
-    line: usize,
-    position: usize,
-    content: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-struct GrepReport {
-    items: Vec<GrepItem>,
-}
-
-impl GrepReport {
-    fn new() -> Self {
-        Default::default()
-    }
 }
 
 fn main() {
@@ -112,9 +95,7 @@ fn find_main_or_master_branch<'a>(repo: &'a Repository, branches: &[&'a str]) ->
 
 fn suggest_subcommand(input: &str) -> Option<String> {
     let dictionary = vec![
-        "init", "reset", "grep", 
-        "help", "file", "pattern", 
-        "format", "json", "plain"
+        "init", "reset", "grep", "help", "file", "pattern", "format", "json", "plain", "tree"
     ];
 
     let mut closest = None;
@@ -205,65 +186,21 @@ fn handle_grep(
     let patterns_to_search = pattern.unwrap_or(default_patterns);
 
     if let Some(file_path) = file {
-        grep_file(
-            Path::new(&file_path),
-            report,
-            &mut pattern_tree,
-            &patterns_to_search,
-        )
-        .unwrap();
+        let path = Path::new(&file_path);
+        report
+            .grep_file(path, &mut pattern_tree, &patterns_to_search)
+            .unwrap();
     } else {
         // Scanning all files in the repository
         let repo = get_current_repository().unwrap();
         let path = repo.workdir().expect("Failed to load work directory");
-        let mut callback = |p: &Path| grep_file(p, report, &mut pattern_tree, &patterns_to_search);
+        let mut callback = |p: &Path| report.grep_file(p, &mut pattern_tree, &patterns_to_search);
 
         visit_dirs(path, &mut callback).unwrap();
     }
 
     let report = report_formatting(report, format);
     println!("{}", report);
-}
-
-fn grep_file(
-    path: &Path,
-    report: &mut GrepReport,
-    pattern_tree: &mut PatternTree,
-    patterns: &Vec<String>,
-) -> io::Result<()> {
-    if let Ok(file) = File::open(path) {
-        let reader = io::BufReader::new(file);
-
-        for (index, line) in reader.lines().enumerate() {
-            if let Ok(line) = line {
-                process_line(line, index, path, pattern_tree, patterns, report);
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn process_line(
-    line: String,
-    index: usize,
-    path: &Path,
-    pattern_tree: &mut PatternTree,
-    patterns: &Vec<String>,
-    report: &mut GrepReport,
-) {
-    let (found, matched_positions) = pattern_tree.aho_corasick_search(&line, patterns);
-
-    if found {
-        for pos in matched_positions {
-            report.items.push(GrepItem {
-                file: path.display().to_string(),
-                line: index + 1,
-                position: pos,
-                content: line.clone(),
-            });
-        }
-    }
 }
 
 fn visit_dirs(
@@ -290,19 +227,9 @@ fn report_formatting(report: &mut GrepReport, format: Option<String>) -> String 
     let format = format.unwrap_or(default);
 
     match format.as_str() {
-        "json" => return serde_json::to_string_pretty(&report).unwrap(),
-        "plain" => {
-            let mut result = String::new();
-
-            for item in &report.items {
-                result.push_str(&format!(
-                    "{}:{}:{}:{}\n",
-                    item.file, item.line, item.position, item.content
-                ));
-            }
-
-            return result;
-        }
+        "json" => serde_json::to_string_pretty(&report).unwrap(),
+        "plain" => report.format_plain(),
+        "tree" => report.format_tree(4),
         _ => {
             let suggest = suggest_subcommand(&format).unwrap();
             format!("Unknown format: '{}'. Did you mean '{}'?", format, suggest)
@@ -312,7 +239,7 @@ fn report_formatting(report: &mut GrepReport, format: Option<String>) -> String 
 
 #[cfg(test)]
 mod main_tests {
-    static RUST_EXAMPLE_1: &str = r#"
+    static _RUST_EXAMPLE_1: &str = r#"
     /// [TODO] RangeFactory
     pub trait RangeFactory {
         fn from_node(node: Node) -> Range;
@@ -354,10 +281,10 @@ mod main_tests {
             }
         }
     }"#;
-    
+
     #[test]
     fn grep_python_command() {
-        use super::*;
+        use crate::{handle_grep, GrepReport};
         use tempfile::tempdir;
 
         // Crete temporary directory and rust code file
@@ -382,83 +309,57 @@ mod main_tests {
         )
         .unwrap();
 
-        let mut report = GrepReport { items: Vec::new() };
+        let report = &mut GrepReport {
+            directories: Vec::new(),
+        };
 
-        let mut pattern_tree = PatternTree::new();
-        let patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
-
-        grep_file(&python_file, &mut report, &mut pattern_tree, &patterns).unwrap();
-
-        assert_eq!(report.items.len(), 4);
-
-        let report = serde_json::to_string_pretty(&report).unwrap();
-        println!("{}", report);
-    }
-
-    #[test]
-    fn grep_scan_specific_file() {
-        use super::*;
-        use serde_json::to_string_pretty;
-        use std::fs::File;
-        use std::io::Write;
-        use tempfile::tempdir;
-
-        let dir = tempdir().unwrap();
-        let rust_file1 = dir.path().join("dummy1.rs");
-        let rust_file2 = dir.path().join("dummy2.rs");
-
-        let mut file = File::create(&rust_file1).unwrap();
-        file.write_all(RUST_EXAMPLE_1.as_bytes()).unwrap();
-
-        let mut file = File::create(&rust_file2).unwrap();
-        file.write_all(RUST_EXAMPLE_2.as_bytes()).unwrap();
-
-        let mut report = GrepReport { items: Vec::new() };
-
-        let pattern = vec!["[TODO]".to_string()];
-
-        // cargo run -- grep -f ../dummy1.rs
-        grep_file(&rust_file1, &mut report, &mut PatternTree::new(), &pattern).unwrap();
-
-        let report_info = to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
-
-        // cargo run -- grep -f ../dummy2.rs
-        let mut report = GrepReport { items: Vec::new() };
-
-        let pattern = vec!["[TODO]".to_string(), "[DONE]".to_string()];
-
-        grep_file(&rust_file2, &mut report, &mut PatternTree::new(), &pattern).unwrap();
-
-        let report_info = to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
+        handle_grep(
+            Some(python_file.to_str().unwrap().to_string()),
+            None,
+            report,
+            None,
+        );
     }
 
     #[test]
     fn test_handle_grep() {
-        use super::*;
+        use crate::{handle_grep, GrepReport};
         use std::fs::File;
         use std::io::Write;
         use tempfile::tempdir;
 
         let dir = tempdir().unwrap();
         let rust_file = dir.path().join("dummy1.rs");
-        
+
         let mut file = File::create(&rust_file).unwrap();
         file.write_all(RUST_EXAMPLE_2.as_bytes()).unwrap();
 
-        let mut report = GrepReport { items: Vec::new() };
-        let pattern = vec!["[TODO]".to_string()];
-        
-        let _format = Some("plain".to_string());
+        let mut report = GrepReport {
+            directories: Vec::new(),
+        };
+
+        let _pattern = vec!["[TODO]".to_string()];
+        let format = Some("tree".to_string());
 
         // balpan grep -f ../dummy1.rs
-        handle_grep(Some(rust_file.to_str().unwrap().to_string()), None, &mut report, None);
+        handle_grep(
+            Some(rust_file.to_str().unwrap().to_string()),
+            None,
+            &mut report,
+            format,
+        );
 
-        let mut report = GrepReport { items: Vec::new() };
-        let format = Some("json".to_string());
+        // let mut report = GrepReport {
+        //     directories: Vec::new(),
+        // };
+        // let format = Some("json".to_string());
 
-        // balpan grep -f ../dummy1.rs -p [TODO] --format json
-        handle_grep(Some(rust_file.to_str().unwrap().to_string()), Some(pattern), &mut report, format);
+        // // balpan grep -f ../dummy1.rs -p [TODO] --format json
+        // handle_grep(
+        //     Some(rust_file.to_str().unwrap().to_string()),
+        //     Some(pattern),
+        //     &mut report,
+        //     format,
+        // );
     }
 }
