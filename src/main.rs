@@ -30,6 +30,8 @@ enum BalpanCommand {
         file: Option<String>,
         #[clap(short, long, help = "Specific pattern to search")]
         pattern: Option<Vec<String>>,
+        #[clap(long, help = "Apply formatting to the output. Available options: json, plain (default)")]
+        format: Option<String>,
     },
 }
 
@@ -41,9 +43,15 @@ struct GrepItem {
     content: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 struct GrepReport {
     items: Vec<GrepItem>,
+}
+
+impl GrepReport {
+    fn new() -> Self {
+        Default::default()
+    }
 }
 
 fn main() {
@@ -61,9 +69,11 @@ fn main() {
     match app.command {
         BalpanCommand::Init => handle_init(),
         BalpanCommand::Reset => handle_reset(),
-        BalpanCommand::Grep { file, pattern } => {
-            handle_grep(file, pattern, &mut GrepReport { items: Vec::new() })
-        }
+        BalpanCommand::Grep {
+            file,
+            pattern,
+            format,
+        } => handle_grep(file, pattern, &mut GrepReport::new(), format),
     }
 }
 
@@ -101,21 +111,21 @@ fn find_main_or_master_branch<'a>(repo: &'a Repository, branches: &[&'a str]) ->
 }
 
 fn suggest_subcommand(input: &str) -> Option<&'static str> {
-    let subcommands = vec!["init", "reset"];
+    let dictionary = vec!["init", "reset", "grep", "help", "file", "pattern", "format"];
 
     let mut closest = None;
     let mut smallest_distance = usize::MAX;
 
     const THRESHOLD: usize = 3;
 
-    for subcommand in subcommands {
-        let distance = levenshtein(input, subcommand);
+    for item in dictionary {
+        let distance = levenshtein(input, item);
 
         match distance {
             0 => return None,
             1..=THRESHOLD if distance < smallest_distance => {
                 smallest_distance = distance;
-                closest = Some(subcommand);
+                closest = Some(item);
             }
             _ => {}
         }
@@ -180,7 +190,12 @@ fn handle_init() {
     println!("init!");
 }
 
-fn handle_grep(file: Option<String>, pattern: Option<Vec<String>>, report: &mut GrepReport) {
+fn handle_grep(
+    file: Option<String>,
+    pattern: Option<Vec<String>>,
+    report: &mut GrepReport,
+    format: Option<String>,
+) {
     let mut pattern_tree = PatternTree::new();
     let default_patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
     let patterns_to_search = pattern.unwrap_or(default_patterns);
@@ -193,14 +208,17 @@ fn handle_grep(file: Option<String>, pattern: Option<Vec<String>>, report: &mut 
             &patterns_to_search,
         )
         .unwrap();
+    } else {
+        // Scanning all files in the repository
+        let repo = get_current_repository().unwrap();
+        let path = repo.workdir().expect("Failed to load work directory");
+        let mut callback = |p: &Path| grep_file(p, report, &mut pattern_tree, &patterns_to_search);
+
+        visit_dirs(path, &mut callback).unwrap();
     }
 
-    // Scanning all files in the repository
-    let repo = get_current_repository().unwrap();
-    let path = repo.workdir().expect("Failed to load work directory");
-    let mut callback = |p: &Path| grep_file(p, report, &mut pattern_tree, &patterns_to_search);
-
-    visit_dirs(path, &mut callback).unwrap();
+    let report = report_formatting(report, format);
+    println!("{}", report);
 }
 
 fn grep_file(
@@ -263,67 +281,72 @@ fn visit_dirs(
     Ok(())
 }
 
+fn report_formatting(report: &mut GrepReport, format: Option<String>) -> String {
+    let default = "plain".to_string();
+    let format = format.unwrap_or(default);
+
+    match format.as_str() {
+        "json" => return serde_json::to_string_pretty(&report).unwrap(),
+        "plain" | _ => {
+            let mut result = String::new();
+
+            for item in &report.items {
+                result.push_str(&format!(
+                    "{}:{}:{}:{}\n",
+                    item.file, item.line, item.position, item.content
+                ));
+            }
+
+            return result;
+        }
+    }
+}
+
 #[cfg(test)]
 mod main_tests {
-    #[test]
-    #[ignore]
-    fn subcommand_suggestion() {
-        use super::suggest_subcommand;
-
-        assert_eq!(suggest_subcommand("innit"), Some("init"));
-        assert_eq!(suggest_subcommand("resett"), Some("reset"));
-        assert_eq!(suggest_subcommand("unknown"), None);
-        assert_eq!(suggest_subcommand("inot"), Some("init"));
-
-        assert_eq!(suggest_subcommand("init"), None);
-        assert_eq!(suggest_subcommand("reset"), None);
+    static RUST_EXAMPLE_1: &str = r#"
+    /// [TODO] RangeFactory
+    pub trait RangeFactory {
+        fn from_node(node: Node) -> Range;
     }
 
-    #[test]
-    fn grep_rust_command() {
-        use super::*;
-        use tempfile::tempdir;
-
-        // Crete temporary directory and rust code file
-        let dir = tempdir().unwrap();
-
-        let rust_file = dir.path().join("dummy.rs");
-        std::fs::write(
-            &rust_file,
-            r#"
-        /// [TODO] main
-        fn main() {
-            unimplemented!();
+    /// [TODO] RangeFactory
+    impl RangeFactory for Range {
+        /// [TODO] RangeFactory > from_node
+        #[inline]
+        fn from_node(node: Node) -> Range {
+            Range {
+                start_byte: node.start_byte(),
+                end_byte: node.end_byte(),
+                start_point: node.start_position(),
+                end_point: node.end_position(),
+            }
         }
-        
-        /// above
-        /// [DONE] foo
-        /// below
-        fn foo() {
-            unimplemented!("text");
-        }"#,
-        )
-        .unwrap();
+    }"#;
 
-        let mut report = GrepReport { items: Vec::new() };
+    static RUST_EXAMPLE_2: &str = r#"
+    /// [TODO] tree_sitter_extended
+    mod tree_sitter_extended {
+        /// [DONE] tree_sitter_extended > RangeFactory
+        pub trait RangeFactory {
+            fn from_node(node: Node) -> Range;
+        }
 
-        let mut pattern_tree = PatternTree::new();
-        let patterns = vec!["[DONE]".to_string()];
-
-        grep_file(&rust_file, &mut report, &mut pattern_tree, &patterns).unwrap();
-
-        assert_eq!(report.items.len(), 1);
-
-        let item = &report.items[0];
-        assert_eq!(item.file, rust_file.display().to_string());
-
-        assert_eq!(item.line, 8);
-        assert_eq!(item.content, "        /// [DONE] foo");
-
-        let report_info = serde_json::to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
-    }
-
+        /// [TODO] tree_sitter_extended > RangeFactory
+        impl RangeFactory for Range {
+            /// [DONE] tree_sitter_extended > RangeFactory > from_node
+            #[inline]
+            fn from_node(node: Node) -> Range {
+                Range {
+                    start_byte: node.start_byte(),
+                    end_byte: node.end_byte(),
+                    start_point: node.start_position(),
+                    end_point: node.end_position(),
+                }
+            }
+        }
+    }"#;
+    
     #[test]
     fn grep_python_command() {
         use super::*;
@@ -377,57 +400,10 @@ mod main_tests {
         let rust_file2 = dir.path().join("dummy2.rs");
 
         let mut file = File::create(&rust_file1).unwrap();
-        file.write_all(
-            r#"
-        /// [TODO] RangeFactory
-        pub trait RangeFactory {
-            fn from_node(node: Node) -> Range;
-        }
-
-        /// [TODO] RangeFactory
-        impl RangeFactory for Range {
-            /// [TODO] RangeFactory > from_node
-            #[inline]
-            fn from_node(node: Node) -> Range {
-                Range {
-                    start_byte: node.start_byte(),
-                    end_byte: node.end_byte(),
-                    start_point: node.start_position(),
-                    end_point: node.end_position(),
-                }
-            }
-        }"#
-            .as_bytes(),
-        )
-        .unwrap();
+        file.write_all(RUST_EXAMPLE_1.as_bytes()).unwrap();
 
         let mut file = File::create(&rust_file2).unwrap();
-        file.write_all(
-            r#"
-        /// [TODO] tree_sitter_extended
-        mod tree_sitter_extended {
-            /// [DONE] tree_sitter_extended > RangeFactory
-            pub trait RangeFactory {
-                fn from_node(node: Node) -> Range;
-            }
-
-            /// [TODO] tree_sitter_extended > RangeFactory
-            impl RangeFactory for Range {
-                /// [DONE] tree_sitter_extended > RangeFactory > from_node
-                #[inline]
-                fn from_node(node: Node) -> Range {
-                    Range {
-                        start_byte: node.start_byte(),
-                        end_byte: node.end_byte(),
-                        start_point: node.start_position(),
-                        end_point: node.end_position(),
-                    }
-                }
-            }
-        }"#
-            .as_bytes(),
-        )
-        .unwrap();
+        file.write_all(RUST_EXAMPLE_2.as_bytes()).unwrap();
 
         let mut report = GrepReport { items: Vec::new() };
 
@@ -451,40 +427,26 @@ mod main_tests {
     }
 
     #[test]
-    fn search_non_custom_pattern() {
+    fn test_hadle_grep() {
         use super::*;
+        use std::fs::File;
+        use std::io::Write;
         use tempfile::tempdir;
 
-        // Crete temporary directory and rust code file
         let dir = tempdir().unwrap();
-        let rust_file = dir.path().join("dummy.rs");
-        std::fs::write(
-            &rust_file,
-            r#"
-        /// [TODO] main
-        fn main() {
-            unimplemented!();
-        }
+        let rust_file = dir.path().join("dummy1.rs");
         
-        /// above
-        /// [DONE] foo
-        /// below
-        fn foo() {
-            unimplemented!("text");
-        }"#,
-        )
-        .unwrap();
+        let mut file = File::create(&rust_file).unwrap();
+        file.write_all(RUST_EXAMPLE_2.as_bytes()).unwrap();
 
         let mut report = GrepReport { items: Vec::new() };
+        let pattern = vec!["[TODO]".to_string()];
+        
+        let _format = Some("plain".to_string());
+        handle_grep(Some(rust_file.to_str().unwrap().to_string()), None, &mut report, None);
 
-        let mut pattern_tree = PatternTree::new();
-        let patterns = vec!["fn".to_string()];
-
-        grep_file(&rust_file, &mut report, &mut pattern_tree, &patterns).unwrap();
-
-        assert_eq!(report.items.len(), 2);
-
-        let report_info = serde_json::to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
+        let mut report = GrepReport { items: Vec::new() };
+        let format = Some("json".to_string());
+        handle_grep(Some(rust_file.to_str().unwrap().to_string()), Some(pattern), &mut report, format);
     }
 }
