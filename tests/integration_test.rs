@@ -2,6 +2,7 @@
 mod integration_test {
     mod python_test;
     mod rust_test;
+    mod ruby_test;
 
     use balpan::analyzer::{Analyzer, Traversable};
     use balpan::grammar::{build_grammars, fetch_grammars};

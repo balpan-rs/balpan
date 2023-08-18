@@ -2,6 +2,7 @@
 pub enum Language {
     Rust,
     Python,
+    Ruby,
     Other(String),
 }
 
@@ -10,6 +11,7 @@ impl Language {
         match self {
             Self::Rust => "rust",
             Self::Python => "python",
+            Self::Ruby => "ruby",
             Self::Other(language) => language.as_str(),
         }
     }
@@ -19,6 +21,7 @@ impl Language {
         match extension {
             "rs" => Self::Rust,
             "py" => Self::Python,
+            "rb" => Self::Ruby,
             other_extension => Self::Other(other_extension.to_string()),
         }
     }
@@ -28,6 +31,7 @@ impl Language {
         match self {
             Language::Rust => "source_file",
             Language::Python => "module",
+            Language::Ruby => "program",
             _ => "",
         }
     }
@@ -36,6 +40,7 @@ impl Language {
         match self {
             Language::Rust => "attribute_item",
             Language::Python => "null",
+            Language::Ruby => "null",
             _ => "",
         }
     }
@@ -44,6 +49,7 @@ impl Language {
         match self {
             Language::Rust => "line_comment",
             Language::Python => "comment",
+            Language::Ruby => "comment",
             _ => "",
         }
     }
@@ -88,6 +94,12 @@ impl Language {
                 "function_definition",
                 "decorated_definition",
             ],
+            Language::Ruby => vec![
+                "class",
+                "method",
+                "function",
+                "module",
+            ],
             _ => vec![],
         }
     }
@@ -96,6 +108,7 @@ impl Language {
         match self {
             Language::Rust => vec!["mod_item", "impl_item"],
             Language::Python => vec!["class_definition"],
+            Language::Ruby => vec!["class", "module"],
             _ => vec![],
         }
     }
@@ -106,6 +119,7 @@ impl From<&str> for Language {
         match language_name {
             "rust" => Self::Rust,
             "python" => Self::Python,
+            "ruby" => Self::Ruby,
             other_language => Self::Other(other_language.to_string()),
         }
     }

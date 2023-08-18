@@ -3,6 +3,7 @@ use crate::language::Language;
 pub enum CommentToken {
     Rust,
     Python,
+    Ruby,
     Other,
 }
 
@@ -11,6 +12,7 @@ impl CommentToken {
         match language {
             Language::Rust => CommentToken::Rust,
             Language::Python => CommentToken::Python,
+            Language::Ruby => CommentToken::Ruby,
             _ => CommentToken::Other,
         }
     }
@@ -19,6 +21,7 @@ impl CommentToken {
         match self {
             CommentToken::Rust => "/// [TODO]",
             CommentToken::Python => "# [TODO]",
+            CommentToken::Ruby => "# [TODO]",
             CommentToken::Other => "// [TODO]",
         }
     }
