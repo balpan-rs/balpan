@@ -4,6 +4,7 @@ use std::fs::File;
 
 use git2::Repository;
 use ignore::WalkBuilder;
+use strsim::levenshtein;
 
 pub fn get_current_repository() -> Option<Repository> {
     let current_dir = env::current_dir().ok()?;
@@ -12,19 +13,13 @@ pub fn get_current_repository() -> Option<Repository> {
     Some(repo)
 }
 
-// pub fn get_git_repo_root() -> Option<String> {
-//     let repo = get_current_repository().ok()?;
-//     let repo_root = repo.workdir()?.to_string_lossy().to_string();
-//
-//     Some(repo_root)
-// }
-
 pub fn list_available_files(repo_path: &str) -> Vec<String> {
     let mut result = Vec::new();
     let walker = WalkBuilder::new(repo_path)
         .hidden(true)
         .git_ignore(true)
         .parents(false)
+        .filter_entry(|f| !f.path().to_string_lossy().ends_with(".toml"))
         .build();
 
     // Traverse the directory with gitignore rules applied
@@ -41,4 +36,30 @@ pub fn list_available_files(repo_path: &str) -> Vec<String> {
     }
 
     result
+}
+
+pub fn suggest_subcommand(input: &str) -> Option<String> {
+    let dictionary = vec![
+        "init", "reset", "grep", "help", "file", "pattern", "format", "json", "plain"
+    ];
+
+    let mut closest = None;
+    let mut smallest_distance = usize::MAX;
+
+    const THRESHOLD: usize = 3;
+
+    for item in dictionary {
+        let distance = levenshtein(input, item);
+
+        match distance {
+            0 => return None,
+            1..=THRESHOLD if distance < smallest_distance => {
+                smallest_distance = distance;
+                closest = Some(item.to_string());
+            }
+            _ => {}
+        }
+    }
+
+    closest
 }

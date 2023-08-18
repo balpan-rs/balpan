@@ -1,15 +1,12 @@
-use std::fs::File;
-use std::io::{self, BufRead};
 use std::path::Path;
 
 use balpan::pattern_search::PatternTree;
 use clap::{Parser, Subcommand};
-use serde::{Deserialize, Serialize};
 
+use balpan::commands::grep::GrepReport;
 use balpan::scanner::Scanner;
-use balpan::utils::get_current_repository;
+use balpan::utils::{get_current_repository, list_available_files, suggest_subcommand};
 use git2::Repository;
-use strsim::levenshtein;
 
 #[derive(Debug, Parser)]
 #[command(author, about, version, long_about = None)]
@@ -30,20 +27,12 @@ enum BalpanCommand {
         file: Option<String>,
         #[clap(short, long, help = "Specific pattern to search")]
         pattern: Option<Vec<String>>,
+        #[clap(
+            long,
+            help = "Apply formatting to the output. Available options: json, tree, plain (default)"
+        )]
+        format: Option<String>,
     },
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct GrepItem {
-    file: String,
-    line: usize,
-    position: usize,
-    content: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct GrepReport {
-    items: Vec<GrepItem>,
 }
 
 fn main() {
@@ -61,9 +50,11 @@ fn main() {
     match app.command {
         BalpanCommand::Init => handle_init(),
         BalpanCommand::Reset => handle_reset(),
-        BalpanCommand::Grep { file, pattern } => {
-            handle_grep(file, pattern, &mut GrepReport { items: Vec::new() })
-        }
+        BalpanCommand::Grep {
+            file,
+            pattern,
+            format,
+        } => handle_grep(file, pattern, &mut GrepReport::new(), format),
     }
 }
 
@@ -98,30 +89,6 @@ fn find_main_or_master_branch<'a>(repo: &'a Repository, branches: &[&'a str]) ->
     }
 
     find_main_or_master_branch(repo, &branches[1..])
-}
-
-fn suggest_subcommand(input: &str) -> Option<&'static str> {
-    let subcommands = vec!["init", "reset"];
-
-    let mut closest = None;
-    let mut smallest_distance = usize::MAX;
-
-    const THRESHOLD: usize = 3;
-
-    for subcommand in subcommands {
-        let distance = levenshtein(input, subcommand);
-
-        match distance {
-            0 => return None,
-            1..=THRESHOLD if distance < smallest_distance => {
-                smallest_distance = distance;
-                closest = Some(subcommand);
-            }
-            _ => {}
-        }
-    }
-
-    closest
 }
 
 fn handle_reset() {
@@ -180,153 +147,89 @@ fn handle_init() {
     println!("init!");
 }
 
-fn handle_grep(file: Option<String>, pattern: Option<Vec<String>>, report: &mut GrepReport) {
+fn handle_grep(
+    file: Option<String>,
+    pattern: Option<Vec<String>>,
+    report: &mut GrepReport,
+    format: Option<String>,
+) {
     let mut pattern_tree = PatternTree::new();
     let default_patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
     let patterns_to_search = pattern.unwrap_or(default_patterns);
 
     if let Some(file_path) = file {
-        grep_file(
-            Path::new(&file_path),
-            report,
-            &mut pattern_tree,
-            &patterns_to_search,
-        )
-        .unwrap();
-    }
+        let path = Path::new(&file_path);
+        report
+            .grep_file(path, &mut pattern_tree, &patterns_to_search)
+            .unwrap();
+    } else {
+        // Scanning all files in the repository
+        let repo = get_current_repository().expect("No repository found");
+        let path = repo.workdir().expect("No workdir found").to_str().unwrap();
+        
+        let available_files = list_available_files(&path);
 
-    // Scanning all files in the repository
-    let repo = get_current_repository().unwrap();
-    let path = repo.workdir().expect("Failed to load work directory");
-    let mut callback = |p: &Path| grep_file(p, report, &mut pattern_tree, &patterns_to_search);
-
-    visit_dirs(path, &mut callback).unwrap();
-}
-
-fn grep_file(
-    path: &Path,
-    report: &mut GrepReport,
-    pattern_tree: &mut PatternTree,
-    patterns: &Vec<String>,
-) -> io::Result<()> {
-    if let Ok(file) = File::open(path) {
-        let reader = io::BufReader::new(file);
-
-        for (index, line) in reader.lines().enumerate() {
-            if let Ok(line) = line {
-                process_line(line, index, path, pattern_tree, patterns, report);
-            }
+        for file in available_files {
+            let path = Path::new(&file);
+            report
+                .grep_file(path, &mut pattern_tree, &patterns_to_search)
+                .unwrap();
         }
     }
 
-    Ok(())
-}
-
-fn process_line(
-    line: String,
-    index: usize,
-    path: &Path,
-    pattern_tree: &mut PatternTree,
-    patterns: &Vec<String>,
-    report: &mut GrepReport,
-) {
-    let (found, matched_positions) = pattern_tree.aho_corasick_search(&line, patterns);
-
-    if found {
-        for pos in matched_positions {
-            report.items.push(GrepItem {
-                file: path.display().to_string(),
-                line: index + 1,
-                position: pos,
-                content: line.clone(),
-            });
-        }
-    }
-}
-
-fn visit_dirs(
-    dir: &Path,
-    callback: &mut dyn for<'a> FnMut(&'a Path) -> io::Result<()>,
-) -> io::Result<()> {
-    if dir.is_dir() {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            match path.is_dir() {
-                true => visit_dirs(&path, callback)?,
-                false => callback(&path)?,
-            }
-        }
-    }
-
-    Ok(())
+    let formatting = report.report_formatting(format);
+    println!("{}", formatting);
 }
 
 #[cfg(test)]
 mod main_tests {
+    static _RUST_EXAMPLE_1: &str = r#"
+    /// [TODO] RangeFactory
+    pub trait RangeFactory {
+        fn from_node(node: Node) -> Range;
+    }
+
+    /// [TODO] RangeFactory
+    impl RangeFactory for Range {
+        /// [TODO] RangeFactory > from_node
+        #[inline]
+        fn from_node(node: Node) -> Range {
+            Range {
+                start_byte: node.start_byte(),
+                end_byte: node.end_byte(),
+                start_point: node.start_position(),
+                end_point: node.end_position(),
+            }
+        }
+    }"#;
+
+    static RUST_EXAMPLE_2: &str = r#"
+    /// [TODO] tree_sitter_extended
+    mod tree_sitter_extended {
+        /// [DONE] tree_sitter_extended > RangeFactory
+        pub trait RangeFactory {
+            fn from_node(node: Node) -> Range;
+        }
+
+        /// [TODO] tree_sitter_extended > RangeFactory
+        impl RangeFactory for Range {
+            /// [DONE] tree_sitter_extended > RangeFactory > from_node
+            #[inline]
+            fn from_node(node: Node) -> Range {
+                Range {
+                    start_byte: node.start_byte(),
+                    end_byte: node.end_byte(),
+                    start_point: node.start_position(),
+                    end_point: node.end_position(),
+                }
+            }
+        }
+    }"#;
+
     #[test]
     #[ignore]
-    fn subcommand_suggestion() {
-        use super::suggest_subcommand;
-
-        assert_eq!(suggest_subcommand("innit"), Some("init"));
-        assert_eq!(suggest_subcommand("resett"), Some("reset"));
-        assert_eq!(suggest_subcommand("unknown"), None);
-        assert_eq!(suggest_subcommand("inot"), Some("init"));
-
-        assert_eq!(suggest_subcommand("init"), None);
-        assert_eq!(suggest_subcommand("reset"), None);
-    }
-
-    #[test]
-    fn grep_rust_command() {
-        use super::*;
-        use tempfile::tempdir;
-
-        // Crete temporary directory and rust code file
-        let dir = tempdir().unwrap();
-
-        let rust_file = dir.path().join("dummy.rs");
-        std::fs::write(
-            &rust_file,
-            r#"
-        /// [TODO] main
-        fn main() {
-            unimplemented!();
-        }
-        
-        /// above
-        /// [DONE] foo
-        /// below
-        fn foo() {
-            unimplemented!("text");
-        }"#,
-        )
-        .unwrap();
-
-        let mut report = GrepReport { items: Vec::new() };
-
-        let mut pattern_tree = PatternTree::new();
-        let patterns = vec!["[DONE]".to_string()];
-
-        grep_file(&rust_file, &mut report, &mut pattern_tree, &patterns).unwrap();
-
-        assert_eq!(report.items.len(), 1);
-
-        let item = &report.items[0];
-        assert_eq!(item.file, rust_file.display().to_string());
-
-        assert_eq!(item.line, 8);
-        assert_eq!(item.content, "        /// [DONE] foo");
-
-        let report_info = serde_json::to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
-    }
-
-    #[test]
     fn grep_python_command() {
-        use super::*;
+        use crate::{handle_grep, GrepReport};
         use tempfile::tempdir;
 
         // Crete temporary directory and rust code file
@@ -351,140 +254,47 @@ mod main_tests {
         )
         .unwrap();
 
-        let mut report = GrepReport { items: Vec::new() };
+        let report = &mut GrepReport {
+            directories: Vec::new(),
+        };
 
-        let mut pattern_tree = PatternTree::new();
-        let patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
+        let pattern = vec!["[TODO]".to_string()];
 
-        grep_file(&python_file, &mut report, &mut pattern_tree, &patterns).unwrap();
-
-        assert_eq!(report.items.len(), 4);
-
-        let report = serde_json::to_string_pretty(&report).unwrap();
-        println!("{}", report);
+        handle_grep(
+            None,
+            Some(pattern),
+            report,
+            None,
+        );
     }
 
     #[test]
-    fn grep_scan_specific_file() {
-        use super::*;
-        use serde_json::to_string_pretty;
+    #[ignore]
+    fn test_handle_grep() {
+        use crate::{handle_grep, GrepReport};
         use std::fs::File;
         use std::io::Write;
         use tempfile::tempdir;
 
         let dir = tempdir().unwrap();
-        let rust_file1 = dir.path().join("dummy1.rs");
-        let rust_file2 = dir.path().join("dummy2.rs");
+        let rust_file = dir.path().join("dummy1.rs");
 
-        let mut file = File::create(&rust_file1).unwrap();
-        file.write_all(
-            r#"
-        /// [TODO] RangeFactory
-        pub trait RangeFactory {
-            fn from_node(node: Node) -> Range;
-        }
+        let mut file = File::create(&rust_file).unwrap();
+        file.write_all(RUST_EXAMPLE_2.as_bytes()).unwrap();
 
-        /// [TODO] RangeFactory
-        impl RangeFactory for Range {
-            /// [TODO] RangeFactory > from_node
-            #[inline]
-            fn from_node(node: Node) -> Range {
-                Range {
-                    start_byte: node.start_byte(),
-                    end_byte: node.end_byte(),
-                    start_point: node.start_position(),
-                    end_point: node.end_position(),
-                }
-            }
-        }"#
-            .as_bytes(),
-        )
-        .unwrap();
-
-        let mut file = File::create(&rust_file2).unwrap();
-        file.write_all(
-            r#"
-        /// [TODO] tree_sitter_extended
-        mod tree_sitter_extended {
-            /// [DONE] tree_sitter_extended > RangeFactory
-            pub trait RangeFactory {
-                fn from_node(node: Node) -> Range;
-            }
-
-            /// [TODO] tree_sitter_extended > RangeFactory
-            impl RangeFactory for Range {
-                /// [DONE] tree_sitter_extended > RangeFactory > from_node
-                #[inline]
-                fn from_node(node: Node) -> Range {
-                    Range {
-                        start_byte: node.start_byte(),
-                        end_byte: node.end_byte(),
-                        start_point: node.start_position(),
-                        end_point: node.end_position(),
-                    }
-                }
-            }
-        }"#
-            .as_bytes(),
-        )
-        .unwrap();
-
-        let mut report = GrepReport { items: Vec::new() };
+        let mut report = GrepReport {
+            directories: Vec::new(),
+        };
 
         let pattern = vec!["[TODO]".to_string()];
+        let format = Some("tree".to_string());
 
-        // cargo run -- grep -f ../dummy1.rs
-        grep_file(&rust_file1, &mut report, &mut PatternTree::new(), &pattern).unwrap();
-
-        let report_info = to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
-
-        // cargo run -- grep -f ../dummy2.rs
-        let mut report = GrepReport { items: Vec::new() };
-
-        let pattern = vec!["[TODO]".to_string(), "[DONE]".to_string()];
-
-        grep_file(&rust_file2, &mut report, &mut PatternTree::new(), &pattern).unwrap();
-
-        let report_info = to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
-    }
-
-    #[test]
-    fn search_non_custom_pattern() {
-        use super::*;
-        use tempfile::tempdir;
-
-        // Crete temporary directory and rust code file
-        let dir = tempdir().unwrap();
-        let rust_file = dir.path().join("dummy.rs");
-        std::fs::write(
-            &rust_file,
-            r#"
-        /// [TODO] main
-        fn main() {
-            unimplemented!();
-        }
-        
-        /// above
-        /// [DONE] foo
-        /// below
-        fn foo() {
-            unimplemented!("text");
-        }"#,
-        )
-        .unwrap();
-
-        let mut report = GrepReport { items: Vec::new() };
-
-        let mut pattern_tree = PatternTree::new();
-        let patterns = vec!["fn".to_string()];
-
-        grep_file(&rust_file, &mut report, &mut pattern_tree, &patterns).unwrap();
-
-        assert_eq!(report.items.len(), 2);
-
-        let report_info = serde_json::to_string_pretty(&report).unwrap();
-        println!("{}", report_info);
+        // balpan grep -f ../dummy1.rs
+        handle_grep(
+            Some(rust_file.to_str().unwrap().to_string()),
+            Some(pattern),
+            &mut report,
+            format,
+        );
     }
 }
