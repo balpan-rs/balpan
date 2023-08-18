@@ -22,12 +22,6 @@ pub trait Traversable<'tree> {
 
 impl<'tree> Traversable<'tree> for Analyzer {
     fn get_indent_comment_pool(&self) -> Vec<String> {
-        // let comment = match self.language {
-        //     Language::Rust => "/// [TODO]",
-        //     Language::Python => "# [TODO]",
-        //     _ => "//",
-        // };
-
         let comment_token = CommentToken::from_language(&self.language);
         let comment = comment_token.to_str();
         let ident = "    ";

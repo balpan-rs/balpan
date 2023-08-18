@@ -110,8 +110,12 @@ fn find_main_or_master_branch<'a>(repo: &'a Repository, branches: &[&'a str]) ->
     find_main_or_master_branch(repo, &branches[1..])
 }
 
-fn suggest_subcommand(input: &str) -> Option<&'static str> {
-    let dictionary = vec!["init", "reset", "grep", "help", "file", "pattern", "format"];
+fn suggest_subcommand(input: &str) -> Option<String> {
+    let dictionary = vec![
+        "init", "reset", "grep", 
+        "help", "file", "pattern", 
+        "format", "json", "plain"
+    ];
 
     let mut closest = None;
     let mut smallest_distance = usize::MAX;
@@ -125,7 +129,7 @@ fn suggest_subcommand(input: &str) -> Option<&'static str> {
             0 => return None,
             1..=THRESHOLD if distance < smallest_distance => {
                 smallest_distance = distance;
-                closest = Some(item);
+                closest = Some(item.to_string());
             }
             _ => {}
         }
@@ -287,7 +291,7 @@ fn report_formatting(report: &mut GrepReport, format: Option<String>) -> String 
 
     match format.as_str() {
         "json" => return serde_json::to_string_pretty(&report).unwrap(),
-        "plain" | _ => {
+        "plain" => {
             let mut result = String::new();
 
             for item in &report.items {
@@ -298,6 +302,10 @@ fn report_formatting(report: &mut GrepReport, format: Option<String>) -> String 
             }
 
             return result;
+        }
+        _ => {
+            let suggest = suggest_subcommand(&format).unwrap();
+            format!("Unknown format: '{}'. Did you mean '{}'?", format, suggest)
         }
     }
 }
@@ -427,7 +435,7 @@ mod main_tests {
     }
 
     #[test]
-    fn test_hadle_grep() {
+    fn test_handle_grep() {
         use super::*;
         use std::fs::File;
         use std::io::Write;
@@ -443,10 +451,14 @@ mod main_tests {
         let pattern = vec!["[TODO]".to_string()];
         
         let _format = Some("plain".to_string());
+
+        // balpan grep -f ../dummy1.rs
         handle_grep(Some(rust_file.to_str().unwrap().to_string()), None, &mut report, None);
 
         let mut report = GrepReport { items: Vec::new() };
         let format = Some("json".to_string());
+
+        // balpan grep -f ../dummy1.rs -p [TODO] --format json
         handle_grep(Some(rust_file.to_str().unwrap().to_string()), Some(pattern), &mut report, format);
     }
 }
