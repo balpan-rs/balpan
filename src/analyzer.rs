@@ -13,14 +13,7 @@ pub struct Analyzer {
     pub language: Language,
 }
 
-pub trait Traversable<'tree> {
-    fn get_indent_comment_pool(&self) -> Vec<String>;
-    fn analyze(&self) -> VecDeque<String>;
-    fn get_syntax_tree(&self) -> Tree;
-    fn get_scannable_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))>;
-}
-
-impl<'tree> Traversable<'tree> for Analyzer {
+impl<'tree> Analyzer {
     fn get_indent_comment_pool(&self) -> Vec<String> {
         // let comment = match self.language {
         //     Language::Rust => "/// [TODO]",

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod analyze_test {
-    use balpan::analyzer::{Analyzer, Traversable};
+    use balpan::analyzer::Analyzer;
     use balpan::grammar::{build_grammars, fetch_grammars};
     use balpan::language::Language;
     use indoc::indoc;

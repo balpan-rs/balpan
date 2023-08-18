@@ -4,7 +4,7 @@ mod integration_test {
     mod rust_test;
     mod ruby_test;
 
-    use balpan::analyzer::{Analyzer, Traversable};
+    use balpan::analyzer::Analyzer;
     use balpan::grammar::{build_grammars, fetch_grammars};
     use balpan::language::Language;
 

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use git2::Repository;
 
-use crate::analyzer::{Analyzer, Traversable};
+use crate::analyzer::Analyzer;
 use crate::grammar::{build_grammars, fetch_grammars};
 use crate::language::Language;
 use crate::utils::list_available_files;
