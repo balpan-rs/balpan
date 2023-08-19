@@ -153,7 +153,12 @@ impl GrepReport {
             
             // directory path
             let last_two: Vec<&str> = path.iter().rev().take(2).map(|s| s.to_str().unwrap()).collect();
-            result.push_str(&format!("{}/{}\n", last_two[1], last_two[0]));
+
+            if last_two.len() == 2 {
+                result.push_str(&format!("{}/{}\n", last_two[1], last_two[0]));
+            } else {
+                result.push_str(&format!("{}\n", last_two[0]));
+            }
         
             for file in &dir.files {
                 let file_name = Path::new(&file.name);
