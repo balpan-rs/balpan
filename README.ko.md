@@ -67,3 +67,5 @@ $ balpan init
 - Ruby
 
 ### `balpan init`<a name="balpan-init"></a>
+
+![balpan init demo animation](./assets/balpan-init-demo.gif)
