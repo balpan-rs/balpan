@@ -25,8 +25,16 @@
 
 ## Introduction<a name="introduction"></a>
 
-**balpan**은 오픈소스 생태계에 기여하고자 하는 사람들의 온보딩을 돕는 **발판** 이라는 의미로 시작했습니다.
-**balpan**은 소스코드를 트리 구조로 분석하여 treesitter 기반으로 생성된 파서를 이용합니다.
+**balpan**은 오픈소스 생태계에 기여하고자 하는 사람들의 온보딩을 돕는 **발판** 이라는 의미로 시작했습니다. ([🔗](https://m.khan.co.kr/national/national-general/article/202109152114035#c2b))
+
+**balpan**은 [treesitter](https://tree-sitter.github.io)를 이용해서 소스코드를 트리 구조로 분석하여 시각화하고, 능동적으로 소스코드를 읽는 사람들에게는 좀 더 진입장벽을 낮추는 것을 목표로 합니다.
+
+책을 읽을 때도 줄을 치면서 읽듯이, 소스코드를 읽을때도 역시 책갈피 관리하듯이 읽을 수 있도록 하는 것부터 시작합니다.
+
+### Disclaimer
+
+* 트리시터를 설치하는 문제를 부분적으로 해결하기 위해 [helix](https://github.com/helix-editor/helix) 소스코드의 일부를 사용했습니다.
+  * 관련 코드: [config.rs](https://github.com/malkoG/balpan/blob/main/src/config.rs), [grammar.rs](https://github.com/malkoG/balpan/blob/main/src/grammar.rs), [lib.rs](https://github.com/malkoG/balpan/blob/main/src/lib.rs)
 
 ## Installation<a name="installation"></a>
 
@@ -61,6 +69,8 @@ $ balpan init
 ## Features<a name="features"></a>
 
 ### Supported Languages<a name="supported-languages"></a>
+
+당장은 지원하는 언어가 많이 없지만, 트리시터가 지원하는 언어라면 모두 지원할 수 있도록 하는 것을 지향합니다.
 
 - Rust 
 - Python
