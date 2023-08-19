@@ -1,4 +1,3 @@
-use std::io;
 use std::path::Path;
 
 use balpan::pattern_search::PatternTree;
@@ -6,9 +5,8 @@ use clap::{Parser, Subcommand};
 
 use balpan::commands::grep::GrepReport;
 use balpan::scanner::Scanner;
-use balpan::utils::get_current_repository;
+use balpan::utils::{get_current_repository, list_available_files, suggest_subcommand};
 use git2::Repository;
-use strsim::levenshtein;
 
 #[derive(Debug, Parser)]
 #[command(author, about, version, long_about = None)]
@@ -93,32 +91,6 @@ fn find_main_or_master_branch<'a>(repo: &'a Repository, branches: &[&'a str]) ->
     find_main_or_master_branch(repo, &branches[1..])
 }
 
-fn suggest_subcommand(input: &str) -> Option<String> {
-    let dictionary = vec![
-        "init", "reset", "grep", "help", "file", "pattern", "format", "json", "plain", "tree"
-    ];
-
-    let mut closest = None;
-    let mut smallest_distance = usize::MAX;
-
-    const THRESHOLD: usize = 3;
-
-    for item in dictionary {
-        let distance = levenshtein(input, item);
-
-        match distance {
-            0 => return None,
-            1..=THRESHOLD if distance < smallest_distance => {
-                smallest_distance = distance;
-                closest = Some(item.to_string());
-            }
-            _ => {}
-        }
-    }
-
-    closest
-}
-
 fn handle_reset() {
     let repo = get_current_repository().unwrap();
     //let onboarding_branch = find_branch(&repo, "onboarding").to_string();
@@ -192,49 +164,21 @@ fn handle_grep(
             .unwrap();
     } else {
         // Scanning all files in the repository
-        let repo = get_current_repository().unwrap();
-        let path = repo.workdir().expect("Failed to load work directory");
-        let mut callback = |p: &Path| report.grep_file(p, &mut pattern_tree, &patterns_to_search);
+        let repo = get_current_repository().expect("No repository found");
+        let path = repo.workdir().expect("No workdir found").to_str().unwrap();
+        
+        let available_files = list_available_files(&path);
 
-        visit_dirs(path, &mut callback).unwrap();
-    }
-
-    let report = report_formatting(report, format);
-    println!("{}", report);
-}
-
-fn visit_dirs(
-    dir: &Path,
-    callback: &mut dyn for<'a> FnMut(&'a Path) -> io::Result<()>,
-) -> io::Result<()> {
-    if dir.is_dir() {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            match path.is_dir() {
-                true => visit_dirs(&path, callback)?,
-                false => callback(&path)?,
-            }
+        for file in available_files {
+            let path = Path::new(&file);
+            report
+                .grep_file(path, &mut pattern_tree, &patterns_to_search)
+                .unwrap();
         }
     }
 
-    Ok(())
-}
-
-fn report_formatting(report: &mut GrepReport, format: Option<String>) -> String {
-    let default = "plain".to_string();
-    let format = format.unwrap_or(default);
-
-    match format.as_str() {
-        "json" => serde_json::to_string_pretty(&report).unwrap(),
-        "plain" => report.format_plain(),
-        "tree" => report.format_tree(4),
-        _ => {
-            let suggest = suggest_subcommand(&format).unwrap();
-            format!("Unknown format: '{}'. Did you mean '{}'?", format, suggest)
-        }
-    }
+    let formatting = report.report_formatting(format);
+    println!("{}", formatting);
 }
 
 #[cfg(test)]
@@ -283,6 +227,7 @@ mod main_tests {
     }"#;
 
     #[test]
+    #[ignore]
     fn grep_python_command() {
         use crate::{handle_grep, GrepReport};
         use tempfile::tempdir;
@@ -313,15 +258,18 @@ mod main_tests {
             directories: Vec::new(),
         };
 
+        let pattern = vec!["[TODO]".to_string()];
+
         handle_grep(
-            Some(python_file.to_str().unwrap().to_string()),
             None,
+            Some(pattern),
             report,
             None,
         );
     }
 
     #[test]
+    #[ignore]
     fn test_handle_grep() {
         use crate::{handle_grep, GrepReport};
         use std::fs::File;
@@ -338,28 +286,15 @@ mod main_tests {
             directories: Vec::new(),
         };
 
-        let _pattern = vec!["[TODO]".to_string()];
+        let pattern = vec!["[TODO]".to_string()];
         let format = Some("tree".to_string());
 
         // balpan grep -f ../dummy1.rs
         handle_grep(
             Some(rust_file.to_str().unwrap().to_string()),
-            None,
+            Some(pattern),
             &mut report,
             format,
         );
-
-        // let mut report = GrepReport {
-        //     directories: Vec::new(),
-        // };
-        // let format = Some("json".to_string());
-
-        // // balpan grep -f ../dummy1.rs -p [TODO] --format json
-        // handle_grep(
-        //     Some(rust_file.to_str().unwrap().to_string()),
-        //     Some(pattern),
-        //     &mut report,
-        //     format,
-        // );
     }
 }

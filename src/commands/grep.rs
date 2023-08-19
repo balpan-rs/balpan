@@ -1,29 +1,31 @@
 use std::io::BufRead;
+use std::path::PathBuf;
 use std::{fs::File, io, path::Path};
 
 use serde::{Deserialize, Serialize};
 
 use crate::pattern_search::PatternTree;
+use crate::utils::suggest_subcommand;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct GrepReport {
-    pub directories: Vec<GrepFile>,
+    pub directories: Vec<Directory>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Directory {
+pub struct Directory {
     name: String,
     files: Vec<GrepFile>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GrepFile {
-    name: String,
-    items: Vec<GrepLine>,
+    pub name: String,
+    pub items: Vec<GrepLine>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct GrepLine {
+pub struct GrepLine {
     line: usize,
     content: String,
     position: Vec<usize>,
@@ -46,29 +48,48 @@ impl GrepReport {
 
         if found {
             // search file in list of files
+            let dir_name = path.parent().unwrap().display().to_string();
             let file_name = path.display().to_string();
-            let file_index = self.directories.iter().position(|f| f.name == file_name);
+            
+            let dir_index = self.directories
+                .iter()
+                .position(|d| d.name == dir_name);
 
-            // if file not found, create new file
-            if file_index.is_none() {
-                self.directories.push(GrepFile {
-                    name: file_name.clone(),
-                    items: vec![],
+            if dir_index.is_none() {
+                self.directories.push(Directory {
+                    name: dir_name.clone(),
+                    files: Vec::new(),
                 });
             }
 
-            // add line to file
-            let file = self
-                .directories
+            let dir = self.directories
+                .iter_mut()
+                .find(|d| d.name == dir_name)
+                .unwrap();
+
+            let file_index = dir.files
+                .iter()
+                .position(|f| f.name == file_name);
+
+            if file_index.is_none() {
+                dir.files.push(GrepFile {
+                    name: file_name.clone(),
+                    items: Vec::new(),
+                });
+            }
+
+            let file = dir
+                .files
                 .iter_mut()
                 .find(|f| f.name == file_name)
                 .unwrap();
 
-            file.items.push(GrepLine {
-                line: index,
-                content: line.trim_start().to_string(),
+            let line = GrepLine {
+                line: index + 1,
+                content: line,
                 position: positions,
-            });
+            };
+            file.items.push(line);
         }
     }
 
@@ -89,52 +110,89 @@ impl GrepReport {
         Ok(())
     }
 
-    pub fn format_plain(&self) -> String {
-        self.directories.iter()
-            .flat_map(|directory| {
-                directory.items.iter().flat_map(move |file| {
-                    file.position.iter().map(move |position| {
-                        format!("{}:{}:{}:{}\n", directory.name, file.line, position, file.content)
-                    })
-                })
-            })
-            .collect()
-    }
-
+    // TODO
     pub fn format_tree(&self, ident_size: usize) -> String {
         let mut result = String::new();
-        let whitespace = " ";
 
         for directory in &self.directories {
-            result.push_str(&format!("Directory: {}\n", directory.name));
+            result.push_str(&format!("{}\n", directory.name));
 
-            for file in directory.name.lines() {
-                result.push_str(&format!(
-                    "{}File: {}\n",
-                    whitespace.repeat(ident_size),
-                    file
-                ));
+            for file in &directory.files {
+                for item in &file.items {
+                    let file_relative_path = GrepReport::display_relative_path(&directory.name, &file.name);
 
-                for item in &directory.items {
                     result.push_str(&format!(
-                        "{}Line: {}\n",
-                        whitespace.repeat(ident_size + 2),
-                        item.line
-                    ));
-                    result.push_str(&format!(
-                        "{}Content: {}\n",
-                        whitespace.repeat(ident_size + 4),
-                        item.content
-                    ));
-                    result.push_str(&format!(
-                        "{}Position: {:?}\n",
-                        whitespace.repeat(ident_size + 4),
-                        item.position
+                        "{:ident$}{}:{}:{} - {}\n",
+                        "",
+                        file_relative_path,
+                        item.line,
+                        item.position[0],
+                        item.content.trim_start(),
+                        ident = ident_size,
                     ));
                 }
             }
         }
 
         result
+    }
+
+    fn format_plain(&self) -> String {
+        let mut result = String::new();
+
+        for dir in &self.directories {
+            let path = Path::new(&dir.name);
+            
+            // directory path
+            let last_two: Vec<&str> = path.iter().rev().take(2).map(|s| s.to_str().unwrap()).collect();
+            result.push_str(&format!("{}/{}\n", last_two[1], last_two[0]));
+        
+            for file in &dir.files {
+                let file_name = Path::new(&file.name);
+                let last_two: Vec<&str> = file_name.iter().rev().take(2).map(|s| s.to_str().unwrap()).collect();
+                result.push_str(&format!("{}\n", last_two[0]));
+
+                for item in &file.items {
+                    result.push_str(&format!("{}    {}\n", item.line, item.content.trim_start()));
+                }
+
+                result.push_str("\n");
+            }
+
+            result.push_str("\n");
+        }
+
+        result
+    }
+
+    pub fn report_formatting(&mut self, format: Option<String>) -> String {
+        let default = "plain".to_string();
+        let format = format.unwrap_or(default);
+    
+        match format.as_str() {
+            "json" => serde_json::to_string_pretty(self).unwrap(),
+            "plain" => self.format_plain(),
+            // "tree" => self.format_tree(4),
+            _ => {
+                let suggest = suggest_subcommand(&format).unwrap();
+                format!("Unknown format: '{}'. Did you mean '{}'?", format, suggest)
+            }
+        }
+    }
+
+    fn display_relative_path(directory: &str, file_name: &str) -> String {
+        let base_path = Path::new(directory);
+        let path = Path::new(file_name);
+
+        let relative_path = path.strip_prefix(base_path).unwrap();
+        let mut display_path = PathBuf::new();
+
+        for _ in 1..base_path.components().count() - 2 {
+            display_path.push("..");
+        }
+
+        display_path.push(relative_path);
+
+        display_path.display().to_string()
     }
 }
