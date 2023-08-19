@@ -13,14 +13,14 @@ pub struct Scanner;
 
 impl Scanner {
     #[inline]
-    pub fn scan(repo: &Repository) {
+    pub async fn scan(repo: &Repository) {
         fetch_grammars().unwrap();
         build_grammars(None).unwrap();
 
         if let Some(workdir) = repo.workdir() {
             let repo_root = workdir.to_string_lossy().to_string();
             let filenames = list_available_files(&repo_root);
-            for filename in filenames {
+            for filename in filenames.await {
                 if filename.contains("test") {
                     continue;
                 }
