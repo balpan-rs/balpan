@@ -19,6 +19,7 @@ pub fn list_available_files(repo_path: &str) -> Vec<String> {
         .hidden(true)
         .git_ignore(true)
         .parents(false)
+        .filter_entry(|f| !f.path().to_string_lossy().starts_with("."))
         .filter_entry(|f| !f.path().to_string_lossy().ends_with(".toml"))
         .build();
 

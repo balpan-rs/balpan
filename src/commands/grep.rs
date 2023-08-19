@@ -102,8 +102,16 @@ impl GrepReport {
         if let Ok(file) = File::open(path) {
             let r = io::BufReader::new(file);
 
-            for (i, line) in r.lines().enumerate() {
-                self.process_line(line.unwrap(), i, path, pattern_tree, patterns);
+            for (i, line_bytes) in r.split(b'\n').enumerate() {
+                match line_bytes {
+                    Ok(line_bytes) => {
+                        let line = String::from_utf8_lossy(&line_bytes).to_string();
+                        self.process_line(line, i, path, pattern_tree, patterns);
+                    }
+                    Err(e) => {
+                        eprintln!("Error while reading file: {}", e);
+                    }
+                }
             }
         }
 
