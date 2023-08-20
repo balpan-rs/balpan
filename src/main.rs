@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::path::Path;
+use std::time::Instant;
 
 use balpan::pattern_search::PatternTree;
 use clap::{Parser, Subcommand};
@@ -7,6 +9,7 @@ use balpan::commands::grep::GrepReport;
 use balpan::scanner::Scanner;
 use balpan::utils::{get_current_repository, list_available_files, suggest_subcommand};
 use git2::Repository;
+use tokio::runtime::{Runtime, Builder};
 
 #[derive(Debug, Parser)]
 #[command(author, about, version, long_about = None)]
@@ -35,6 +38,13 @@ enum BalpanCommand {
     },
 }
 
+fn create_runtime() -> Runtime {
+    Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+}
+
 fn main() {
     let app = BalpanApp::parse();
 
@@ -48,13 +58,28 @@ fn main() {
     }
 
     match app.command {
-        BalpanCommand::Init => handle_init(),
+        BalpanCommand::Init => {
+            let runtime = create_runtime();
+
+            runtime.block_on(async {
+                handle_init().await
+            })
+        },
         BalpanCommand::Reset => handle_reset(),
         BalpanCommand::Grep {
             file,
             pattern,
             format,
-        } => handle_grep(file, pattern, &mut GrepReport::new(), format),
+        } => {
+            let time = Instant::now();
+            let runtime = create_runtime();
+            
+            runtime.block_on(async {
+                let mut report = GrepReport::new();
+                handle_grep(file, pattern, &mut report, format).await;
+            });
+            println!("time: {:?}", time.elapsed());
+        }
     }
 }
 
@@ -116,7 +141,7 @@ fn handle_reset() {
     }
 }
 
-fn handle_init() {
+async fn handle_init() {
     let repo = get_current_repository().unwrap();
     // let onboarding_branch = find_branch(&repo, "onboarding").to_owned();
     let mut is_already_setup: bool = false;
@@ -143,11 +168,11 @@ fn handle_init() {
     git(vec!["switch".to_owned(), main_branch]);
     git(vec!["switch".to_owned(), "onboarding".to_owned()]);
 
-    Scanner::scan(&repo);
+    Scanner::scan(&repo).await;
     println!("init!");
 }
 
-fn handle_grep(
+async fn handle_grep(
     file: Option<String>,
     pattern: Option<Vec<String>>,
     report: &mut GrepReport,
@@ -159,26 +184,29 @@ fn handle_grep(
 
     if let Some(file_path) = file {
         let path = Path::new(&file_path);
-        report
-            .grep_file(path, &mut pattern_tree, &patterns_to_search)
-            .unwrap();
+        update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
     } else {
         // Scanning all files in the repository
         let repo = get_current_repository().expect("No repository found");
         let path = repo.workdir().expect("No workdir found").to_str().unwrap();
         
-        let available_files = list_available_files(&path);
+        let available_files = list_available_files(&path).await;
 
         for file in available_files {
             let path = Path::new(&file);
-            report
-                .grep_file(path, &mut pattern_tree, &patterns_to_search)
-                .unwrap();
+            update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
         }
     }
 
     let formatting = report.report_formatting(format);
     println!("{}", formatting);
+}
+
+async fn update_report(report: &mut GrepReport, path: &Path, pattern_tree: &mut PatternTree, patterns_to_search: &Vec<String>) {
+    report
+        .grep_file(path, pattern_tree, patterns_to_search)
+        .await
+        .unwrap();
 }
 
 #[cfg(test)]
@@ -226,33 +254,10 @@ mod main_tests {
         }
     }"#;
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn grep_python_command() {
+    async fn grep_python_command() {
         use crate::{handle_grep, GrepReport};
-        use tempfile::tempdir;
-
-        // Crete temporary directory and rust code file
-        let dir = tempdir().unwrap();
-        let python_file = dir.path().join("dummy.py");
-        std::fs::write(
-            &python_file,
-            r#"
-            # [TODO] some
-            def some(a, b):
-                return a + b
-
-            # [TODO] class
-            class DummyPythonClass:
-                # [DONE] __init__
-                def __init__(self):
-                    print("hello")
-                
-                # [TODO] foo
-                def foo(self, a, b):
-                    return a + b"#,
-        )
-        .unwrap();
 
         let report = &mut GrepReport {
             directories: Vec::new(),
@@ -260,41 +265,13 @@ mod main_tests {
 
         let pattern = vec!["[TODO]".to_string()];
 
+        let time = std::time::Instant::now();
         handle_grep(
             None,
             Some(pattern),
             report,
             None,
-        );
-    }
-
-    #[test]
-    #[ignore]
-    fn test_handle_grep() {
-        use crate::{handle_grep, GrepReport};
-        use std::fs::File;
-        use std::io::Write;
-        use tempfile::tempdir;
-
-        let dir = tempdir().unwrap();
-        let rust_file = dir.path().join("dummy1.rs");
-
-        let mut file = File::create(&rust_file).unwrap();
-        file.write_all(RUST_EXAMPLE_2.as_bytes()).unwrap();
-
-        let mut report = GrepReport {
-            directories: Vec::new(),
-        };
-
-        let pattern = vec!["[TODO]".to_string()];
-        let format = Some("tree".to_string());
-
-        // balpan grep -f ../dummy1.rs
-        handle_grep(
-            Some(rust_file.to_str().unwrap().to_string()),
-            Some(pattern),
-            &mut report,
-            format,
-        );
+        ).await;
+        println!("Time elapsed: {:?}", time.elapsed());
     }
 }

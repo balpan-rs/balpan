@@ -1,6 +1,8 @@
-use std::io::BufRead;
 use std::path::PathBuf;
-use std::{fs::File, io, path::Path};
+use std::{io, path::Path};
+
+use tokio::fs::File;
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 use serde::{Deserialize, Serialize};
 
@@ -93,26 +95,23 @@ impl GrepReport {
         }
     }
 
-    pub fn grep_file(
+    pub async fn grep_file(
         &mut self,
         path: &Path,
         pattern_tree: &mut PatternTree,
         patterns: &Vec<String>,
     ) -> io::Result<()> {
-        if let Ok(file) = File::open(path) {
-            let r = io::BufReader::new(file);
+        let file = File::open(path).await?;
+        let mut reader = BufReader::new(file);
 
-            for (i, line_bytes) in r.split(b'\n').enumerate() {
-                match line_bytes {
-                    Ok(line_bytes) => {
-                        let line = String::from_utf8_lossy(&line_bytes).to_string();
-                        self.process_line(line, i, path, pattern_tree, patterns);
-                    }
-                    Err(e) => {
-                        eprintln!("Error while reading file: {}", e);
-                    }
-                }
-            }
+        let mut line_bytes = Vec::new();
+        let mut i = 0;
+
+        while reader.read_until(b'\n', &mut line_bytes).await? > 0 {
+            let line = String::from_utf8_lossy(&line_bytes).to_string();
+            self.process_line(line, i, path, pattern_tree, patterns);
+            line_bytes.clear();
+            i += 1;
         }
 
         Ok(())
@@ -166,7 +165,7 @@ impl GrepReport {
                 result.push_str(&format!("{}\n", last_two[0]));
 
                 for item in &file.items {
-                    result.push_str(&format!("{}    {}\n", item.line, item.content.trim_start()));
+                    result.push_str(&format!("{}    {}", item.line, item.content.trim_start()));
                 }
 
                 result.push_str("\n");

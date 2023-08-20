@@ -13,8 +13,9 @@ pub fn get_current_repository() -> Option<Repository> {
     Some(repo)
 }
 
-pub fn list_available_files(repo_path: &str) -> Vec<String> {
+pub async fn list_available_files(repo_path: &str) -> Vec<String> {
     let mut result = Vec::new();
+    // TODO refactor this
     let walker = WalkBuilder::new(repo_path)
         .hidden(true)
         .git_ignore(true)
@@ -23,16 +24,18 @@ pub fn list_available_files(repo_path: &str) -> Vec<String> {
         .filter_entry(|f| !f.path().to_string_lossy().ends_with(".toml"))
         .build();
 
-    // Traverse the directory with gitignore rules applied
     for entry in walker.flatten() {
-        // Skip directories
-        if entry.file_type().expect(".").is_dir() {
-            continue;
-        }
-
-        // Open each file and process it
-        if let Ok(_file) = File::open(entry.path()) {
-            result.push(String::from(entry.path().to_string_lossy()));
+        match entry.file_type() {
+            Some(file_type) if file_type.is_file() => {
+                if let Ok(_file) = File::open(entry.path()) {
+                    result.push(String::from(entry.path().to_string_lossy()));
+                }
+            }
+            // if file type is directory or other things, just skip it
+            _ => {
+                format!("Skip: {} is not a file", entry.path().to_string_lossy());
+                continue;
+            }
         }
     }
 
