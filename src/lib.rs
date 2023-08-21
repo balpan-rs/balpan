@@ -5,7 +5,6 @@ pub mod commands;
 pub mod config;
 pub mod grammar;
 pub mod language;
-pub mod pattern_search;
 pub mod scanner;
 pub mod tokens;
 pub mod tree_sitter_extended;
