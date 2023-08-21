@@ -46,7 +46,8 @@ impl GrepReport {
         pattern_tree: &mut PatternTree,
         patterns: &Vec<String>,
     ) {
-        let (found, positions) = pattern_tree.aho_corasick_search(&line, patterns);
+        //let (found, positions) = pattern_tree.aho_corasick_search(&line, patterns);
+        let (found, positions) = pattern_tree.selective_search(patterns, &line);
 
         if found {
             // search file in list of files
