@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 use std::path::Path;
 use std::time::Instant;
 
-use balpan::pattern_search::PatternTree;
+use balpan::commands::pattern_search::PatternTree;
 use clap::{Parser, Subcommand};
 
 use balpan::commands::grep::GrepReport;
@@ -29,7 +28,7 @@ enum BalpanCommand {
         #[clap(short, long, help = "Specific file to scan")]
         file: Option<String>,
         #[clap(short, long, help = "Specific pattern to search")]
-        pattern: Option<Vec<String>>,
+        pattern: Option<String>,
         #[clap(
             long,
             help = "Apply formatting to the output. Available options: json, tree, plain (default)"
@@ -73,11 +72,14 @@ fn main() {
         } => {
             let time = Instant::now();
             let runtime = create_runtime();
-            
+
+            let patterns: Option<Vec<String>> = pattern.map(|p| p.split_whitespace().map(|s| s.to_string()).collect());
+
             runtime.block_on(async {
                 let mut report = GrepReport::new();
-                handle_grep(file, pattern, &mut report, format).await;
+                handle_grep(file, patterns, &mut report, format).await;
             });
+
             println!("time: {:?}", time.elapsed());
         }
     }
@@ -207,71 +209,4 @@ async fn update_report(report: &mut GrepReport, path: &Path, pattern_tree: &mut 
         .grep_file(path, pattern_tree, patterns_to_search)
         .await
         .unwrap();
-}
-
-#[cfg(test)]
-mod main_tests {
-    static _RUST_EXAMPLE_1: &str = r#"
-    /// [TODO] RangeFactory
-    pub trait RangeFactory {
-        fn from_node(node: Node) -> Range;
-    }
-
-    /// [TODO] RangeFactory
-    impl RangeFactory for Range {
-        /// [TODO] RangeFactory > from_node
-        #[inline]
-        fn from_node(node: Node) -> Range {
-            Range {
-                start_byte: node.start_byte(),
-                end_byte: node.end_byte(),
-                start_point: node.start_position(),
-                end_point: node.end_position(),
-            }
-        }
-    }"#;
-
-    static RUST_EXAMPLE_2: &str = r#"
-    /// [TODO] tree_sitter_extended
-    mod tree_sitter_extended {
-        /// [DONE] tree_sitter_extended > RangeFactory
-        pub trait RangeFactory {
-            fn from_node(node: Node) -> Range;
-        }
-
-        /// [TODO] tree_sitter_extended > RangeFactory
-        impl RangeFactory for Range {
-            /// [DONE] tree_sitter_extended > RangeFactory > from_node
-            #[inline]
-            fn from_node(node: Node) -> Range {
-                Range {
-                    start_byte: node.start_byte(),
-                    end_byte: node.end_byte(),
-                    start_point: node.start_position(),
-                    end_point: node.end_position(),
-                }
-            }
-        }
-    }"#;
-
-    #[tokio::test]
-    #[ignore]
-    async fn grep_python_command() {
-        use crate::{handle_grep, GrepReport};
-
-        let report = &mut GrepReport {
-            directories: Vec::new(),
-        };
-
-        let pattern = vec!["[TODO]".to_string()];
-
-        let time = std::time::Instant::now();
-        handle_grep(
-            None,
-            Some(pattern),
-            report,
-            None,
-        ).await;
-        println!("Time elapsed: {:?}", time.elapsed());
-    }
 }

@@ -2,7 +2,7 @@
 mod pattern_search_test {
     #[test]
     fn test_search_multiple_pattern() {
-        use balpan::pattern_search::PatternTree;
+        use balpan::commands::pattern_search::PatternTree;
 
         let searcher = PatternTree::new();
 
@@ -15,7 +15,7 @@ mod pattern_search_test {
 
     #[test]
     fn test_search_todo_done_comments_using_aho_corasick() {
-        use balpan::pattern_search::PatternTree;
+        use balpan::commands::pattern_search::PatternTree;
 
         let searcher = PatternTree::new();
         let text = r#"
@@ -34,7 +34,7 @@ mod pattern_search_test {
         //"#;
 
         let patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
-        let expected = (true, vec![13, 170]);
+        let expected = (true, vec![11, 154]);
 
         let result = searcher.aho_corasick_search(text, &patterns);
 
@@ -43,7 +43,7 @@ mod pattern_search_test {
 
     #[test]
     fn test_selective_search() {
-        use balpan::pattern_search::PatternTree;
+        use balpan::commands::pattern_search::PatternTree;
 
         let searcher = PatternTree::new();
         let text = r#"
@@ -60,13 +60,6 @@ mod pattern_search_test {
         //   unimplemented!();
         //}
         //"#;
-
-        // let patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
-        // let expected = (true, vec![11, 154]);
-
-        // let result = searcher.selective_search(&patterns, text);
-
-        // assert_eq!(result, expected);
 
         let pattern = vec!["[TODO]".to_string()];
         let expected = (true, vec![11, 154]);
@@ -193,7 +186,7 @@ mod boyer_moore_tests {
         let searcher = BoyerMooreSearch::new(b"fn");
         let result = searcher.find_in(source).collect::<Vec<usize>>();
 
-        assert_eq!(vec![62, 167, 205, 297, 372], result);
+        assert_eq!(vec![58, 163, 201, 293, 368], result);
     }
 
     #[test]

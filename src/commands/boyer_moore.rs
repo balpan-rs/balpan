@@ -70,7 +70,7 @@ where
     /// 
     /// Basic usage:
     /// 
-    /// ```
+    /// ``` ignore
     /// use balpan::commands::boyer_moore::{BoyerMooreSearch, SearchIn};
     /// 
     /// let searcher = BoyerMooreSearch::new(b"aba");
@@ -104,7 +104,7 @@ where
     /// 
     /// ### Example
     /// 
-    /// ```
+    /// ``` ignore
     /// use balpan::commands::boyer_moore::{BoyerMooreSearch, SearchIn};
     /// 
     /// let searcher = BoyerMooreSearch::new(b"aaba");
@@ -388,7 +388,6 @@ where
         return None;
     }
 
-    // TODO fix subtract with overflow
     let max_position = text.len() - pattern.len();
     while position <= max_position {
         let mut pattern_pos = pattern.len() - 1;

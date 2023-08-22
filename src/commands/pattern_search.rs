@@ -22,14 +22,8 @@ impl PatternTree {
     pub fn selective_search(&self, patterns: &Vec<String>, text: &str) -> PatternPosition {
         match patterns.len() {
             0 => (false, vec![]),
-            1 => {
-                println!("use boyer moore");
-                self.boyer_moore_search(text, &patterns[0])
-            },
-            _ => {
-                println!("use aho corasick");
-                self.aho_corasick_search(text, patterns)
-            }
+            1 => self.boyer_moore_search(text, &patterns[0]),
+            _ => self.aho_corasick_search(text, patterns),
         }
     }
 
@@ -37,8 +31,8 @@ impl PatternTree {
         let ac = AhoCorasick::new(patterns).unwrap();
         let mut result: Vec<usize> = Vec::new();
 
-        for mached in ac.find_iter(text) {
-            result.push(mached.start());
+        for matched in ac.find_iter(text) {
+            result.push(matched.start());
         }
 
         (!result.is_empty(), result)

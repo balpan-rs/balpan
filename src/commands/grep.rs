@@ -6,8 +6,9 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 
 use serde::{Deserialize, Serialize};
 
-use crate::pattern_search::PatternTree;
 use crate::utils::suggest_subcommand;
+
+use super::pattern_search::PatternTree;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct GrepReport {
