@@ -39,7 +39,7 @@ impl GrepReport {
         Default::default()
     }
 
-    pub fn process_line(
+    fn process_line(
         &mut self,
         line: String,
         index: usize,
@@ -47,17 +47,14 @@ impl GrepReport {
         pattern_tree: &mut PatternTree,
         patterns: &Vec<String>,
     ) {
-        //let (found, positions) = pattern_tree.aho_corasick_search(&line, patterns);
         let (found, positions) = pattern_tree.selective_search(patterns, &line);
 
         if found {
             // search file in list of files
             let dir_name = path.parent().unwrap().display().to_string();
             let file_name = path.display().to_string();
-            
-            let dir_index = self.directories
-                .iter()
-                .position(|d| d.name == dir_name);
+
+            let dir_index = self.directories.iter().position(|d| d.name == dir_name);
 
             if dir_index.is_none() {
                 self.directories.push(Directory {
@@ -66,14 +63,13 @@ impl GrepReport {
                 });
             }
 
-            let dir = self.directories
+            let dir = self
+                .directories
                 .iter_mut()
                 .find(|d| d.name == dir_name)
                 .unwrap();
 
-            let file_index = dir.files
-                .iter()
-                .position(|f| f.name == file_name);
+            let file_index = dir.files.iter().position(|f| f.name == file_name);
 
             if file_index.is_none() {
                 dir.files.push(GrepFile {
@@ -82,11 +78,7 @@ impl GrepReport {
                 });
             }
 
-            let file = dir
-                .files
-                .iter_mut()
-                .find(|f| f.name == file_name)
-                .unwrap();
+            let file = dir.files.iter_mut().find(|f| f.name == file_name).unwrap();
 
             let line = GrepLine {
                 line: index + 1,
@@ -128,7 +120,8 @@ impl GrepReport {
 
             for file in &directory.files {
                 for item in &file.items {
-                    let file_relative_path = GrepReport::display_relative_path(&directory.name, &file.name);
+                    let file_relative_path =
+                        GrepReport::display_relative_path(&directory.name, &file.name);
 
                     result.push_str(&format!(
                         "{:ident$}{}:{}:{} - {}\n",
@@ -151,29 +144,22 @@ impl GrepReport {
 
         for dir in &self.directories {
             let path = Path::new(&dir.name);
-            
-            // directory path
-            let last_two: Vec<&str> = path.iter().rev().take(2).map(|s| s.to_str().unwrap()).collect();
 
-            if last_two.len() == 2 {
-                result.push_str(&format!("{}/{}\n", last_two[1], last_two[0]));
-            } else {
-                result.push_str(&format!("{}\n", last_two[0]));
-            }
-        
+            dir_path_pretty(path, &mut result);
+
             for file in &dir.files {
                 let file_name = Path::new(&file.name);
-                let last_two: Vec<&str> = file_name.iter().rev().take(2).map(|s| s.to_str().unwrap()).collect();
+                let last_two = last_two(file_name);
                 result.push_str(&format!("{}\n", last_two[0]));
 
                 for item in &file.items {
                     result.push_str(&format!("{}    {}", item.line, item.content.trim_start()));
                 }
 
-                result.push_str("\n");
+                result.push('\n');
             }
 
-            result.push_str("\n");
+            result.push('\n');
         }
 
         result
@@ -182,7 +168,7 @@ impl GrepReport {
     pub fn report_formatting(&mut self, format: Option<String>) -> String {
         let default = "plain".to_string();
         let format = format.unwrap_or(default);
-    
+
         match format.as_str() {
             "json" => serde_json::to_string_pretty(self).unwrap(),
             "plain" => self.format_plain(),
@@ -209,4 +195,23 @@ impl GrepReport {
 
         display_path.display().to_string()
     }
+}
+
+fn last_two(path: &Path) -> Vec<&str> {
+    path
+        .iter()
+        .rev()
+        .take(2)
+        .map(|s| s.to_str().unwrap())
+        .collect()
+}
+
+fn dir_path_pretty(path: &Path, result: &mut String) {
+    let last_two: Vec<&str> = last_two(path);
+
+    if last_two.len() == 2 {
+        result.push_str(&format!("{}/{}\n", last_two[1], last_two[0]));
+    }
+
+    result.push_str(&format!("{}\n", last_two[0]));
 }

@@ -8,7 +8,7 @@ use balpan::commands::grep::GrepReport;
 use balpan::scanner::Scanner;
 use balpan::utils::{get_current_repository, list_available_files, suggest_subcommand};
 use git2::Repository;
-use tokio::runtime::{Runtime, Builder};
+use tokio::runtime::{Builder, Runtime};
 
 #[derive(Debug, Parser)]
 #[command(author, about, version, long_about = None)]
@@ -38,17 +38,14 @@ enum BalpanCommand {
 }
 
 fn create_runtime() -> Runtime {
-    Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
+    Builder::new_current_thread().enable_all().build().unwrap()
 }
 
 fn main() {
     let app = BalpanApp::parse();
 
     // verify that the subcommand entered is correct.
-    let user_input = std::env::args().nth(1);
+    let user_input: Option<String> = std::env::args().nth(1);
 
     if let Some(input) = user_input {
         if suggest_subcommand(&input).is_some() {
@@ -60,10 +57,8 @@ fn main() {
         BalpanCommand::Init => {
             let runtime = create_runtime();
 
-            runtime.block_on(async {
-                handle_init().await
-            })
-        },
+            runtime.block_on(async { handle_init().await })
+        }
         BalpanCommand::Reset => handle_reset(),
         BalpanCommand::Grep {
             file,
@@ -73,7 +68,8 @@ fn main() {
             let time = Instant::now();
             let runtime = create_runtime();
 
-            let patterns: Option<Vec<String>> = pattern.map(|p| p.split_whitespace().map(|s| s.to_string()).collect());
+            let patterns: Option<Vec<String>> =
+                pattern.map(|p| p.split_whitespace().map(|s| s.to_string()).collect());
 
             runtime.block_on(async {
                 let mut report = GrepReport::new();
@@ -95,7 +91,7 @@ fn git(args: Vec<String>) {
 fn find_branch<'a>(repository: &Repository, target: &'a str) -> Option<&'a str> {
     let mut iter = repository.branches(None);
 
-    while let Some(Ok((branch, _))) = &iter.as_mut().expect("???").next() {
+    while let Some(Ok((ref branch, _))) = &iter.as_mut().expect("???").next() {
         if let Ok(Some(branch_name)) = branch.name() {
             if target == branch_name {
                 return Some(target);
@@ -187,24 +183,29 @@ async fn handle_grep(
     if let Some(file_path) = file {
         let path = Path::new(&file_path);
         update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
-    } else {
-        // Scanning all files in the repository
-        let repo = get_current_repository().expect("No repository found");
-        let path = repo.workdir().expect("No workdir found").to_str().unwrap();
-        
-        let available_files = list_available_files(&path).await;
+    }
 
-        for file in available_files {
-            let path = Path::new(&file);
-            update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
-        }
+    // Scanning all files in the repository
+    let repo = get_current_repository().expect("No repository found");
+    let repo_path = repo.workdir().expect("No workdir found").to_str().unwrap();
+
+    let available_files: Vec<String> = list_available_files(repo_path).await;
+
+    for file in available_files {
+        let path = Path::new(&file);
+        update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
     }
 
     let formatting = report.report_formatting(format);
     println!("{}", formatting);
 }
 
-async fn update_report(report: &mut GrepReport, path: &Path, pattern_tree: &mut PatternTree, patterns_to_search: &Vec<String>) {
+async fn update_report(
+    report: &mut GrepReport,
+    path: &Path,
+    pattern_tree: &mut PatternTree,
+    patterns_to_search: &Vec<String>,
+) {
     report
         .grep_file(path, pattern_tree, patterns_to_search)
         .await

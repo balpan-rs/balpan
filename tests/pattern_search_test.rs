@@ -181,7 +181,8 @@ mod boyer_moore_tests {
                 true
             }
         }
-        "#.as_bytes();
+        "#
+        .as_bytes();
 
         let searcher = BoyerMooreSearch::new(b"fn");
         let result = searcher.find_in(source).collect::<Vec<usize>>();
@@ -342,7 +343,8 @@ mod boyer_moore_tests {
         My wife kill’d too?
         
         ROSS.
-        I have said.".as_bytes();
+        I have said."
+            .as_bytes();
 
         let searcher = BoyerMooreSearch::new(b"MALCOM");
         let first_occurrence = searcher.find_first_position(text);
@@ -351,9 +353,7 @@ mod boyer_moore_tests {
         let searcher = BoyerMooreSearch::new(b"MACDUFF");
         let find_all = searcher.find_in(text).collect::<Vec<usize>>();
         let expected = vec![
-            716, 844, 1077, 1667, 
-            1925, 2019, 2115, 2278, 
-            3229, 3507, 3777, 4282, 4423
+            716, 844, 1077, 1667, 1925, 2019, 2115, 2278, 3229, 3507, 3777, 4282, 4423,
         ];
         assert_eq!(expected, find_all);
     }

@@ -1,5 +1,5 @@
-use aho_corasick::AhoCorasick;
 use crate::commands::boyer_moore::{BoyerMooreSearch, SearchIn};
+use aho_corasick::AhoCorasick;
 
 #[derive(Debug, Clone)]
 pub struct PatternTree;
@@ -13,10 +13,10 @@ impl PatternTree {
     }
 
     /// Call all search methods based on the given patterns
-    /// 
-    /// If the pattern is single, then call `boyer_moore_search` method. 
+    ///
+    /// If the pattern is single, then call `boyer_moore_search` method.
     /// Because BM algorithm is known as the fastest algorithm for single pattern search.
-    /// 
+    ///
     /// Whereas, if the pattern is multiple, then call `aho_corasick_search` method.
     /// AC is known as the fastest algorithm for multiple pattern search.
     pub fn selective_search(&self, patterns: &Vec<String>, text: &str) -> PatternPosition {
