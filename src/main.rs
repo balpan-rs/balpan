@@ -1,12 +1,17 @@
+use std::path::Path;
+use std::time::Instant;
+
+use balpan::commands::pattern_search::PatternTree;
 use clap::{Parser, Subcommand};
 
+use balpan::commands::grep::GrepReport;
 use balpan::scanner::Scanner;
-use balpan::utils::get_current_repository;
+use balpan::utils::{get_current_repository, list_available_files, suggest_subcommand};
 use git2::Repository;
-use strsim::levenshtein;
+use tokio::runtime::{Builder, Runtime};
 
 #[derive(Debug, Parser)]
-#[command(author, about, version)]
+#[command(author, about, version, long_about = None)]
 struct BalpanApp {
     #[clap(subcommand)]
     command: BalpanCommand,
@@ -18,23 +23,61 @@ enum BalpanCommand {
     Init,
     #[clap(about = "Reset environment for Balpan and removes all TODO comments")]
     Reset,
+    #[clap(about = "Search for TODO comments in the current repository")]
+    Grep {
+        #[clap(short, long, help = "Specific file to scan")]
+        file: Option<String>,
+        #[clap(short, long, help = "Specific pattern to search")]
+        pattern: Option<String>,
+        #[clap(
+            long,
+            help = "Apply formatting to the output. Available options: json, tree, plain (default)"
+        )]
+        format: Option<String>,
+    },
+}
+
+fn create_runtime() -> Runtime {
+    Builder::new_current_thread().enable_all().build().unwrap()
 }
 
 fn main() {
     let app = BalpanApp::parse();
 
     // verify that the subcommand entered is correct.
-    let user_input = std::env::args().nth(1);
+    let user_input: Option<String> = std::env::args().nth(1);
 
     if let Some(input) = user_input {
         if suggest_subcommand(&input).is_some() {
             println!("Did you mean '{}'?", suggest_subcommand(&input).unwrap());
         }
-    } 
+    }
 
     match app.command {
-        BalpanCommand::Init => handle_init(),
+        BalpanCommand::Init => {
+            let runtime = create_runtime();
+
+            runtime.block_on(async { handle_init().await })
+        }
         BalpanCommand::Reset => handle_reset(),
+        BalpanCommand::Grep {
+            file,
+            pattern,
+            format,
+        } => {
+            let time = Instant::now();
+            let runtime = create_runtime();
+
+            let patterns: Option<Vec<String>> =
+                pattern.map(|p| p.split_whitespace().map(|s| s.to_string()).collect());
+
+            runtime.block_on(async {
+                let mut report = GrepReport::new();
+                handle_grep(file, patterns, &mut report, format).await;
+            });
+
+            println!("time: {:?}", time.elapsed());
+        }
     }
 }
 
@@ -48,7 +91,7 @@ fn git(args: Vec<String>) {
 fn find_branch<'a>(repository: &Repository, target: &'a str) -> Option<&'a str> {
     let mut iter = repository.branches(None);
 
-    while let Some(Ok((branch, _))) = &iter.as_mut().expect("???").next() {
+    while let Some(Ok((ref branch, _))) = &iter.as_mut().expect("???").next() {
         if let Ok(Some(branch_name)) = branch.name() {
             if target == branch_name {
                 return Some(target);
@@ -71,30 +114,6 @@ fn find_main_or_master_branch<'a>(repo: &'a Repository, branches: &[&'a str]) ->
     find_main_or_master_branch(repo, &branches[1..])
 }
 
-fn suggest_subcommand(input: &str) -> Option<&'static str> {
-    let subcommands = vec!["init", "reset"];
-
-    let mut closest = None;
-    let mut smallest_distance = usize::MAX;
-
-    const THRESHOLD: usize = 3;
-
-    for subcommand in subcommands {
-        let distance = levenshtein(input, subcommand);
-
-        match distance {
-            0 => return None,
-            1..=THRESHOLD if distance < smallest_distance => {
-                smallest_distance = distance;
-                closest = Some(subcommand);
-            }
-            _ => {}
-        }
-    }
-
-    closest
-}
-
 fn handle_reset() {
     let repo = get_current_repository().unwrap();
     //let onboarding_branch = find_branch(&repo, "onboarding").to_string();
@@ -104,7 +123,7 @@ fn handle_reset() {
         Some(branch) => {
             is_already_setup = true;
             branch.to_string()
-        },
+        }
         None => panic!("No onboarding branch found"),
     };
 
@@ -112,11 +131,15 @@ fn handle_reset() {
 
     if is_already_setup {
         git(vec!["switch".to_owned(), main_branch]);
-        git(vec!["branch".to_owned(), "-d".to_owned(), onboarding_branch]);
+        git(vec![
+            "branch".to_owned(),
+            "-d".to_owned(),
+            onboarding_branch,
+        ]);
     }
 }
 
-fn handle_init() {
+async fn handle_init() {
     let repo = get_current_repository().unwrap();
     // let onboarding_branch = find_branch(&repo, "onboarding").to_owned();
     let mut is_already_setup: bool = false;
@@ -125,7 +148,7 @@ fn handle_init() {
         Some(branch) => {
             is_already_setup = true;
             branch.to_string()
-        },
+        }
         None => String::new(),
     };
 
@@ -133,30 +156,58 @@ fn handle_init() {
 
     if !is_already_setup {
         git(vec!["switch".to_owned(), main_branch.clone()]);
-        git(vec!["switch".to_owned(), "-c".to_owned(), "onboarding".to_owned()]);
+        git(vec![
+            "switch".to_owned(),
+            "-c".to_owned(),
+            "onboarding".to_owned(),
+        ]);
     }
 
     git(vec!["switch".to_owned(), main_branch]);
     git(vec!["switch".to_owned(), "onboarding".to_owned()]);
 
-    Scanner::scan(&repo);
+    Scanner::scan(&repo).await;
     println!("init!");
 }
 
-#[cfg(test)]
-mod main_tests {
+async fn handle_grep(
+    file: Option<String>,
+    pattern: Option<Vec<String>>,
+    report: &mut GrepReport,
+    format: Option<String>,
+) {
+    let mut pattern_tree = PatternTree::new();
+    let default_patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
+    let patterns_to_search = pattern.unwrap_or(default_patterns);
 
-    #[test]
-    #[ignore]
-    fn subcommand_suggestion() {
-        use super::suggest_subcommand;
-
-        assert_eq!(suggest_subcommand("innit"), Some("init"));
-        assert_eq!(suggest_subcommand("resett"), Some("reset"));
-        assert_eq!(suggest_subcommand("unknown"), None);
-        assert_eq!(suggest_subcommand("inot"), Some("init"));
-
-        assert_eq!(suggest_subcommand("init"), None);
-        assert_eq!(suggest_subcommand("reset"), None);
+    if let Some(file_path) = file {
+        let path = Path::new(&file_path);
+        update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
     }
+
+    // Scanning all files in the repository
+    let repo = get_current_repository().expect("No repository found");
+    let repo_path = repo.workdir().expect("No workdir found").to_str().unwrap();
+
+    let available_files: Vec<String> = list_available_files(repo_path).await;
+
+    for file in available_files {
+        let path = Path::new(&file);
+        update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
+    }
+
+    let formatting = report.report_formatting(format);
+    println!("{}", formatting);
+}
+
+async fn update_report(
+    report: &mut GrepReport,
+    path: &Path,
+    pattern_tree: &mut PatternTree,
+    patterns_to_search: &Vec<String>,
+) {
+    report
+        .grep_file(path, pattern_tree, patterns_to_search)
+        .await
+        .unwrap();
 }

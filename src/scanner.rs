@@ -13,14 +13,14 @@ pub struct Scanner;
 
 impl Scanner {
     #[inline]
-    pub fn scan(repo: &Repository) {
+    pub async fn scan(repo: &Repository) {
         fetch_grammars().unwrap();
         build_grammars(None).unwrap();
 
         if let Some(workdir) = repo.workdir() {
             let repo_root = workdir.to_string_lossy().to_string();
             let filenames = list_available_files(&repo_root);
-            for filename in filenames {
+            for filename in filenames.await {
                 if filename.contains("test") {
                     continue;
                 }
@@ -42,10 +42,10 @@ impl Scanner {
                 if let Ok(mut file) = File::options().read(true).write(true).open(path) {
                     let mut source_code = String::new();
                     file.read_to_string(&mut source_code).unwrap();
-                    let with_empty_line = source_code.ends_with("\n");
+                    let with_empty_line = source_code.ends_with('\n');
                     let analyzer = Analyzer {
                         source_code,
-                        language: language,
+                        language,
                     };
 
                     let writer_queue = &analyzer.analyze();
