@@ -180,12 +180,22 @@ async fn handle_grep(
     let default_patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
     let patterns_to_search = pattern.unwrap_or(default_patterns);
 
-    if let Some(file_path) = file {
-        let path = Path::new(&file_path);
-        update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
+    match file {
+        Some(file_path) => {
+            scan_specific_file(file_path, report, &mut pattern_tree, &patterns_to_search).await
+        }
+        None => scan_project_directory(report, pattern_tree, patterns_to_search).await,
     }
 
-    // Scanning all files in the repository
+    let formatting = report.report_formatting(format);
+    println!("{}", formatting);
+}
+
+async fn scan_project_directory(
+    report: &mut GrepReport,
+    mut pattern_tree: PatternTree,
+    patterns_to_search: Vec<String>,
+) {
     let repo = get_current_repository().expect("No repository found");
     let repo_path = repo.workdir().expect("No workdir found").to_str().unwrap();
 
@@ -195,9 +205,16 @@ async fn handle_grep(
         let path = Path::new(&file);
         update_report(report, path, &mut pattern_tree, &patterns_to_search).await;
     }
+}
 
-    let formatting = report.report_formatting(format);
-    println!("{}", formatting);
+async fn scan_specific_file(
+    file_path: String,
+    report: &mut GrepReport,
+    pattern_tree: &mut PatternTree,
+    patterns_to_search: &Vec<String>,
+) {
+    let path = Path::new(&file_path);
+    update_report(report, path, pattern_tree, patterns_to_search).await;
 }
 
 async fn update_report(
