@@ -124,7 +124,12 @@ impl<'tree> Analyzer {
 
                         let node_symbol_with_indent = &lines[*row];
                         let node_symbol = &node_symbol_with_indent[from.to_owned()..to.to_owned()];
-                        symbol_name_with_context.push_str(node_symbol);
+
+                        if from.to_owned() == 0 && to.to_owned() == 0 {
+                            symbol_name_with_context.push_str("anonymous");
+                        } else {
+                            symbol_name_with_context.push_str(node_symbol);
+                        }
 
                         let indent_size = indentation_context.len();
                         let comment_line: String = format!(
@@ -157,9 +162,17 @@ impl<'tree> Analyzer {
 
                     if nested_traversable_symbols.contains(&node_type) {
                         let (_, from, to) = current_node.identifier_range();
+                        
+                        let mut symbol = String::new();
+                        if from.to_owned() == 0 && to.to_owned() == 0 {
+                            symbol = "anonymous".to_string();
+                        } else {
+                            symbol = line[from.to_owned()..to.to_owned()].to_string();
+                        }
+
                         indentation_context.push_back((
                             *current_node,
-                            line[from.to_owned()..to.to_owned()].to_string(),
+                            symbol
                         ));
                         pop_node = true;
                     }

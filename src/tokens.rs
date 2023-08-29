@@ -4,6 +4,7 @@ pub enum CommentToken {
     Rust,
     Python,
     Ruby,
+    Cpp,
     Other,
 }
 
@@ -13,6 +14,7 @@ impl CommentToken {
             Language::Rust => CommentToken::Rust,
             Language::Python => CommentToken::Python,
             Language::Ruby => CommentToken::Ruby,
+            Language::Cpp => CommentToken::Cpp,
             _ => CommentToken::Other,
         }
     }
@@ -22,6 +24,7 @@ impl CommentToken {
             CommentToken::Rust => "/// [TODO]",
             CommentToken::Python => "# [TODO]",
             CommentToken::Ruby => "# [TODO]",
+            CommentToken::Cpp => "/// [TODO]",
             CommentToken::Other => "// [TODO]",
         }
     }

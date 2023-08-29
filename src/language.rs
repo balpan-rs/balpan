@@ -3,6 +3,7 @@ pub enum Language {
     Rust,
     Python,
     Ruby,
+    Cpp,
     Other(String),
 }
 
@@ -12,6 +13,7 @@ impl Language {
             Self::Rust => "rust",
             Self::Python => "python",
             Self::Ruby => "ruby",
+            Self::Cpp => "cpp",
             Self::Other(language) => language.as_str(),
         }
     }
@@ -22,6 +24,9 @@ impl Language {
             "rs" => Self::Rust,
             "py" => Self::Python,
             "rb" => Self::Ruby,
+            "cpp" => Self::Cpp,
+            "h" => Self::Cpp,
+            "hpp" => Self::Cpp,
             other_extension => Self::Other(other_extension.to_string()),
         }
     }
@@ -32,6 +37,7 @@ impl Language {
             Language::Rust => "source_file",
             Language::Python => "module",
             Language::Ruby => "program",
+            Language::Cpp => "translation_unit",
             _ => "",
         }
     }
@@ -41,6 +47,7 @@ impl Language {
             Language::Rust => "attribute_item",
             Language::Python => "null",
             Language::Ruby => "null",
+            Language::Cpp => "null",
             _ => "",
         }
     }
@@ -50,6 +57,7 @@ impl Language {
             Language::Rust => "line_comment",
             Language::Python => "comment",
             Language::Ruby => "comment",
+            Language::Cpp => "comment",
             _ => "",
         }
     }
@@ -100,6 +108,11 @@ impl Language {
                 "function",
                 "module",
             ],
+            Language::Cpp => vec![
+                "namespace_definition",
+                "function_definition",
+                "class_specifier",
+            ],
             _ => vec![],
         }
     }
@@ -109,6 +122,7 @@ impl Language {
             Language::Rust => vec!["mod_item", "impl_item"],
             Language::Python => vec!["class_definition"],
             Language::Ruby => vec!["class", "module"],
+            Language::Cpp => vec!["namespace_definition", "class_specifier"],
             _ => vec![],
         }
     }
@@ -120,6 +134,7 @@ impl From<&str> for Language {
             "rust" => Self::Rust,
             "python" => Self::Python,
             "ruby" => Self::Ruby,
+            "cpp" => Self::Cpp,
             other_language => Self::Other(other_language.to_string()),
         }
     }

@@ -3,6 +3,7 @@ mod integration_test {
     mod python_test;
     mod rust_test;
     mod ruby_test;
+    mod cpp_test;
 
     use balpan::analyzer::Analyzer;
     use balpan::grammar::{build_grammars, fetch_grammars};
