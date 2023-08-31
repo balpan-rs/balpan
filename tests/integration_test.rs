@@ -1,14 +1,11 @@
 #[cfg(test)]
 mod integration_test {
-    mod python_test;
-    mod rust_test;
-    mod ruby_test;
-    mod cpp_test;
-    mod c_test;
-
     use balpan::analyzer::Analyzer;
     use balpan::grammar::{build_grammars, fetch_grammars};
     use balpan::language::Language;
+
+    mod analyze_command_test;
+    // mod toggle_command_test;
 
     pub fn assert_analyzed_source_code(source_code: &str, expected: &str, language: &str) {
         fetch_grammars().unwrap();
