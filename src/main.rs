@@ -2,7 +2,9 @@ use std::path::Path;
 use std::time::Instant;
 
 use balpan::commands::pattern_search::PatternTree;
+use balpan::grammar::{fetch_grammars, build_grammars};
 use clap::{Parser, Subcommand};
+use glob::glob;
 
 use balpan::commands::grep::GrepReport;
 use balpan::scanner::Scanner;
@@ -35,6 +37,11 @@ enum BalpanCommand {
         )]
         format: Option<String>,
     },
+    #[clap(about = "Generate a TODO comment for specific file")]
+    Analyze {
+        #[clap(short, long, help = "Specific file to scan")]
+        pattern: Option<String>,
+    }
 }
 
 fn create_runtime() -> Runtime {
@@ -77,6 +84,13 @@ fn main() {
             });
 
             println!("time: {:?}", time.elapsed());
+        }
+        BalpanCommand::Analyze { pattern } => {
+            let runtime = create_runtime();
+
+            runtime.block_on(async {
+                handle_analyze(pattern).await;
+            });
         }
     }
 }
@@ -141,7 +155,6 @@ fn handle_reset() {
 
 async fn handle_init() {
     let repo = get_current_repository().unwrap();
-    // let onboarding_branch = find_branch(&repo, "onboarding").to_owned();
     let mut is_already_setup: bool = false;
 
     let _onboarding_branch = match find_branch(&repo, "onboarding") {
@@ -189,6 +202,22 @@ async fn handle_grep(
 
     let formatting = report.report_formatting(format);
     println!("{}", formatting);
+}
+
+async fn handle_analyze(pattern: Option<String>) {
+    if pattern.is_none() {
+        panic!("No file specified. Please specify a file path to analyze")
+    }
+
+    let file_pattern_str = pattern.unwrap();
+    let filter = glob(&file_pattern_str).expect("Failed to read file pattern");
+
+    for entry in filter {
+        match entry {
+            Ok(path) => Scanner::scan_specific_file(path).await,
+            Err(e) => println!("Error while reading file pattern: {}", e),
+        }
+    }
 }
 
 async fn scan_project_directory(
