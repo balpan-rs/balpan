@@ -92,18 +92,13 @@ impl ResolveSymbol for Node<'_> {
 
         let mut node = self.child_by_field_name("name");
 
-        if self.kind() == "namespace_definition" {
-            if node == None {
-                return (0, 0, 0)
-            }
+        if self.kind() == "namespace_definition" && node.is_none() {
+            return (0, 0, 0)
         }
 
         if self.kind() == "function_definition" {
-            match self.child_by_field_name("declarator") {
-                Some(child) => {
-                    node = child.child_by_field_name("declarator");
-                },
-                None => {}
+            if let Some(child) = self.child_by_field_name("declarator") {
+                node = child.child_by_field_name("declarator");
             }
         }
 

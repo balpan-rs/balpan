@@ -73,7 +73,7 @@ impl Scanner {
 
             let language = match path.extension() {
                 Some(p) => Language::from_extension(p.to_str().unwrap()),
-                _ => Language::Other("".to_string()),
+                _ => Language::Other(String::new()),
             };
 
             let analyzer = Analyzer {
