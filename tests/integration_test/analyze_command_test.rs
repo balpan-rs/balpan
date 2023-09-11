@@ -12,3 +12,6 @@ mod cpp_test;
 
 #[cfg(test)]
 mod c_test;
+
+#[cfg(test)]
+mod typescript_test;

@@ -70,23 +70,12 @@ pub trait ResolveSymbol {
 
 impl ResolveSymbol for Node<'_> {
     fn identifier_range(&self) -> (usize, usize, usize) {
-        if self.kind() == "attribute_item" {
-            return (0, 0, 0);
-        }
+        let simple_cases = vec![
+            "attribute_item", "use_declaration", "macro_invocation", 
+            "expression_statement", "foreign_mod_item"
+        ];
 
-        if self.kind() == "use_declaration" {
-            return (0, 0, 0);
-        }
-
-        if self.kind() == "macro_invocation" {
-            return (0, 0, 0)
-        }
-
-        if self.kind() == "expression_statement" {
-            return (0, 0, 0)
-        }
-
-        if self.kind() == "foreign_mod_item" {
+        if simple_cases.contains(&self.kind()) {
             return (0, 0, 0)
         }
 
@@ -107,6 +96,10 @@ impl ResolveSymbol for Node<'_> {
             }
         }
 
+        if self.kind() == "method_definition" {
+            node = self.child_by_field_name("name");
+        }
+
         // case of decorated_definition
         if self.kind() == "decorated_definition" {
             let definition_node = self.child_by_field_name("definition").unwrap();
@@ -122,7 +115,23 @@ impl ResolveSymbol for Node<'_> {
             }
         }
 
-        let identifier_node = node.unwrap();
+        // e.g. `export function foo() {}`
+        if self.kind() == "export_statement" {
+            // this case handles import statement especially `export * from './compiler_facade_interface';` things.
+            // I think this is not a good way to handle this case, but I don't know how to handle this case.
+            if self.child_by_field_name("source") != None {
+                return (0, 0, 0)
+            }
+
+            match self.child_by_field_name("declaration") {
+                Some(child) => {
+                    node = child.child_by_field_name("name");
+                },
+                None => {}
+            }
+        }
+
+        let identifier_node = node.expect(format!("`{}` is an invalid identifier node type", self.kind()).as_str());
 
         let from = identifier_node.start_position().column;
         let row = identifier_node.end_position().row;
