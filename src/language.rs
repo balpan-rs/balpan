@@ -4,6 +4,7 @@ pub enum Language {
     Python,
     Ruby,
     Cpp,
+    TypeScript,
     Other(String),
 }
 
@@ -14,6 +15,7 @@ impl Language {
             Self::Python => "python",
             Self::Ruby => "ruby",
             Self::Cpp => "cpp",
+            Self::TypeScript => "typescript",
             Self::Other(language) => language.as_str(),
         }
     }
@@ -27,6 +29,7 @@ impl Language {
             "cpp" => Self::Cpp,
             "h" => Self::Cpp,
             "hpp" => Self::Cpp,
+            "ts" => Self::TypeScript,
             other_extension => Self::Other(other_extension.to_string()),
         }
     }
@@ -36,7 +39,7 @@ impl Language {
         match self {
             Language::Rust => "source_file",
             Language::Python => "module",
-            Language::Ruby => "program",
+            Language::Ruby | Language::TypeScript => "program",
             Language::Cpp => "translation_unit",
             _ => "",
         }
@@ -45,9 +48,10 @@ impl Language {
     pub fn decorator_node_type(&self) -> &str {
         match self {
             Language::Rust => "attribute_item",
-            Language::Python => "null",
-            Language::Ruby => "null",
-            Language::Cpp => "null",
+            Language::Python 
+            | Language::Ruby
+            | Language::Cpp => "null",
+            Language::TypeScript => "decorator",
             _ => "",
         }
     }
@@ -55,9 +59,10 @@ impl Language {
     pub fn comment_node_type(&self) -> &str {
         match self {
             Language::Rust => "line_comment",
-            Language::Python => "comment",
-            Language::Ruby => "comment",
-            Language::Cpp => "comment",
+            Language::Python 
+            | Language::Ruby 
+            | Language::Cpp 
+            | Language::TypeScript => "comment",
             _ => "",
         }
     }
@@ -80,6 +85,11 @@ impl Language {
                 "expression_statement",
                 "macro_invocation",
                 "foreign_mod_item", // extern "C"
+            ],
+            Language::TypeScript => vec![
+                "string_fragment",
+                "import_specifier",
+                "named_imports",
             ],
             _ => vec![]
         }
@@ -113,6 +123,15 @@ impl Language {
                 "function_definition",
                 "class_specifier",
             ],
+            Language::TypeScript => vec![
+                "enum_declaration",
+                "function_declaration",
+                "class_declaration",
+                "method_definition",
+                "interface_declaration",
+                "export_statement",
+                "expression_statement", // namespace
+            ],
             _ => vec![],
         }
     }
@@ -123,6 +142,11 @@ impl Language {
             Language::Python => vec!["class_definition"],
             Language::Ruby => vec!["class", "module"],
             Language::Cpp => vec!["namespace_definition", "class_specifier"],
+            Language::TypeScript => vec![
+                "class_declaration", 
+                "expression_statement",
+                "internal_module",
+            ],
             _ => vec![],
         }
     }
@@ -135,6 +159,7 @@ impl From<&str> for Language {
             "python" => Self::Python,
             "ruby" => Self::Ruby,
             "cpp" => Self::Cpp,
+            "typescript" => Self::TypeScript,
             other_language => Self::Other(other_language.to_string()),
         }
     }
