@@ -97,7 +97,6 @@ impl<'tree> Analyzer {
                             let decorator_line: &str = pending_queue.pop_front().unwrap();
                             writer_queue.push_back(decorator_line.to_owned());
                         }
-
                         writer_queue.push_back(line.to_owned());
                         nodes_queue.pop_front();
                         continue;
@@ -162,8 +161,8 @@ impl<'tree> Analyzer {
                     if nested_traversable_symbols.contains(&node_type) {
                         let (_, from, to) = current_node.identifier_range();
                         
-                        let mut symbol = String::new();
-                        if from == 0 && to == 0 {
+                        let symbol: String;
+                        if from.to_owned() == 0 && to.to_owned() == 0 {
                             symbol = "anonymous".to_string();
                         } else {
                             symbol = line[from.to_owned()..to.to_owned()].to_string();
