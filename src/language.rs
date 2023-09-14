@@ -5,6 +5,7 @@ pub enum Language {
     Ruby,
     Cpp,
     TypeScript,
+    JavaScript,
     Other(String),
 }
 
@@ -16,7 +17,8 @@ impl Language {
             Self::Ruby => "ruby",
             Self::Cpp => "cpp",
             Self::TypeScript => "typescript",
-            Self::Other(language) => language.as_str(),
+            Self::JavaScript => "javascript",
+            Self::Other(ref language) => language.as_str(),
         }
     }
 
@@ -30,6 +32,7 @@ impl Language {
             "h" => Self::Cpp,
             "hpp" => Self::Cpp,
             "ts" => Self::TypeScript,
+            "js" => Self::JavaScript,
             other_extension => Self::Other(other_extension.to_string()),
         }
     }
@@ -39,7 +42,9 @@ impl Language {
         match self {
             Language::Rust => "source_file",
             Language::Python => "module",
-            Language::Ruby | Language::TypeScript => "program",
+            Language::Ruby 
+            | Language::JavaScript 
+            | Language::TypeScript  => "program",
             Language::Cpp => "translation_unit",
             _ => "",
         }
@@ -49,9 +54,9 @@ impl Language {
         match self {
             Language::Rust => "attribute_item",
             Language::Python 
-            | Language::Ruby
+            | Language::Ruby 
             | Language::Cpp => "null",
-            Language::TypeScript => "decorator",
+            Language::TypeScript | Language::JavaScript => "decorator",
             _ => "",
         }
     }
@@ -59,10 +64,11 @@ impl Language {
     pub fn comment_node_type(&self) -> &str {
         match self {
             Language::Rust => "line_comment",
-            Language::Python 
-            | Language::Ruby 
-            | Language::Cpp 
-            | Language::TypeScript => "comment",
+            Language::Python
+            | Language::Ruby
+            | Language::Cpp
+            | Language::TypeScript
+            | Language::JavaScript => "comment",
             _ => "",
         }
     }
@@ -86,12 +92,10 @@ impl Language {
                 "macro_invocation",
                 "foreign_mod_item", // extern "C"
             ],
-            Language::TypeScript => vec![
-                "string_fragment",
-                "import_specifier",
-                "named_imports",
-            ],
-            _ => vec![]
+            Language::TypeScript | Language::JavaScript => {
+                vec!["string_fragment", "import_specifier", "named_imports"]
+            }
+            _ => vec![],
         }
     }
 
@@ -112,24 +116,20 @@ impl Language {
                 "function_definition",
                 "decorated_definition",
             ],
-            Language::Ruby => vec![
-                "class",
-                "method",
-                "function",
-                "module",
-            ],
+            Language::Ruby => vec!["class", "method", "function", "module"],
             Language::Cpp => vec![
                 "namespace_definition",
                 "function_definition",
                 "class_specifier",
             ],
-            Language::TypeScript => vec![
+            Language::TypeScript | Language::JavaScript => vec![
                 "enum_declaration",
                 "function_declaration",
                 "class_declaration",
                 "method_definition",
                 "interface_declaration",
                 "export_statement",
+                // "variable_declaration",
                 "expression_statement", // namespace
             ],
             _ => vec![],
@@ -142,8 +142,9 @@ impl Language {
             Language::Python => vec!["class_definition"],
             Language::Ruby => vec!["class", "module"],
             Language::Cpp => vec!["namespace_definition", "class_specifier"],
-            Language::TypeScript => vec![
-                "class_declaration", 
+            Language::TypeScript 
+            | Language::JavaScript => vec![
+                "class_declaration",
                 "expression_statement",
                 "internal_module",
             ],
@@ -160,6 +161,7 @@ impl From<&str> for Language {
             "ruby" => Self::Ruby,
             "cpp" => Self::Cpp,
             "typescript" => Self::TypeScript,
+            "javascript" => Self::JavaScript,
             other_language => Self::Other(other_language.to_string()),
         }
     }

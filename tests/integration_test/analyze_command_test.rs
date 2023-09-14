@@ -15,3 +15,6 @@ mod c_test;
 
 #[cfg(test)]
 mod typescript_test;
+
+#[cfg(test)]
+mod javascript_test;
