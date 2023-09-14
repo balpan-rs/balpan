@@ -81,18 +81,13 @@ impl ResolveSymbol for Node<'_> {
 
         let mut node = self.child_by_field_name("name");
 
-        if self.kind() == "namespace_definition" {
-            if node == None {
-                return (0, 0, 0)
-            }
+        if self.kind() == "namespace_definition" && node.is_none() {
+            return (0, 0, 0)
         }
 
         if self.kind() == "function_definition" {
-            match self.child_by_field_name("declarator") {
-                Some(child) => {
-                    node = child.child_by_field_name("declarator");
-                },
-                None => {}
+            if let Some(child) = self.child_by_field_name("declarator") {
+                node = child.child_by_field_name("declarator");
             }
         }
 
@@ -119,19 +114,16 @@ impl ResolveSymbol for Node<'_> {
         if self.kind() == "export_statement" {
             // this case handles import statement especially `export * from './compiler_facade_interface';` things.
             // I think this is not a good way to handle this case, but I don't know how to handle this case.
-            if self.child_by_field_name("source") != None {
+            if self.child_by_field_name("source").is_some() {
                 return (0, 0, 0)
             }
 
-            match self.child_by_field_name("declaration") {
-                Some(child) => {
-                    node = child.child_by_field_name("name");
-                },
-                None => {}
+            if let Some(child) = self.child_by_field_name("declaration") {
+                node = child.child_by_field_name("name");
             }
         }
 
-        let identifier_node = node.expect(format!("`{}` is an invalid identifier node type", self.kind()).as_str());
+        let identifier_node = node.unwrap_or_else(|| panic!("`{}` is an invalid identifier node type", self.kind()));
 
         let from = identifier_node.start_position().column;
         let row = identifier_node.end_position().row;
