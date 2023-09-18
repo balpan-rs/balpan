@@ -2,14 +2,18 @@ use crate::commands::boyer_moore::{BoyerMooreSearch, SearchIn};
 use aho_corasick::AhoCorasick;
 
 #[derive(Debug, Clone)]
-pub struct PatternTree;
+pub struct PatternTree {
+    pub ignore_case: bool,
+}
 
 type PatternPosition = (bool, Vec<usize>);
 
 #[allow(clippy::new_without_default)]
 impl PatternTree {
     pub fn new() -> Self {
-        PatternTree
+        PatternTree {
+            ignore_case: false,
+        }
     }
 
     /// Call all search methods based on the given patterns
@@ -22,8 +26,25 @@ impl PatternTree {
     pub fn selective_search(&self, patterns: &Vec<String>, text: &str) -> PatternPosition {
         match patterns.len() {
             0 => (false, vec![]),
-            1 => self.boyer_moore_search(text, &patterns[0]),
-            _ => self.aho_corasick_search(text, patterns),
+            1 => {
+                match self.ignore_case {
+                    true => self.boyer_moore_search(&text.to_lowercase(), &patterns[0].to_lowercase()),
+                    false => self.boyer_moore_search(text, &patterns[0]),
+                }
+            },
+            _ => {
+                if self.ignore_case {
+                    let mut lower_patterns: Vec<String> = Vec::new();
+
+                    for pattern in patterns {
+                        lower_patterns.push(pattern.to_lowercase());
+                    }
+
+                    self.aho_corasick_search(&text.to_lowercase(), &lower_patterns)
+                } else {
+                    self.aho_corasick_search(text, patterns)
+                }
+            },
         }
     }
 
