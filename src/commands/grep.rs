@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::{io, path::Path};
 
+use regex::Regex;
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -139,7 +140,7 @@ impl GrepReport {
         result
     }
 
-    fn format_plain(&self, hide_path: bool, list_of_files: bool, count: bool) -> String {
+    fn format_plain(&self, hide_path: bool, list_of_files: bool, count: bool, patterns_to_search: Vec<String>, colorize: bool) -> String {
         let mut result = String::new();
         let mut counter: usize = 0;
     
@@ -160,7 +161,19 @@ impl GrepReport {
     
                     if !list_of_files {
                         for item in &file.items {
-                            result.push_str(&format!("{}    {}", item.line, item.content.trim_start()));
+                            if colorize {
+                                // `(?i)` is for case insensitive search
+                                let pattern = Regex::new(&format!(r"(?i){}", patterns_to_search.join(" "))).unwrap();
+                                let text = &item.content;
+
+                                let colored_text = pattern.replace_all(text, |caps: &regex::Captures| {
+                                    format!("\x1b[31m{}\x1b[0m", &caps[0])
+                                });
+
+                                result.push_str(&format!("{}    {}", item.line, colored_text.trim_start()));
+                            } else {
+                                result.push_str(&format!("{}    {}", item.line, item.content.trim_start()));
+                            }
                             counter += 1;
                         }
                         result.push('\n');
@@ -181,13 +194,14 @@ impl GrepReport {
         result
     }
 
-    pub fn report_formatting(&mut self, format: Option<String>, hide_path: bool, list_of_files: bool, count: bool) -> String {
+    #[allow(clippy::too_many_arguments)]
+    pub fn report_formatting(&mut self, format: Option<String>, hide_path: bool, list_of_files: bool, count: bool, patterns_to_search: Vec<String>, colorize: bool) -> String {
         let default = "plain".to_string();
         let format = format.unwrap_or(default);
 
         match format.as_str() {
             "json" => serde_json::to_string_pretty(self).unwrap(),
-            "plain" => self.format_plain(hide_path, list_of_files, count),
+            "plain" => self.format_plain(hide_path, list_of_files, count, patterns_to_search, colorize),
             // "tree" => self.format_tree(4),
             _ => {
                 let suggest = suggest_subcommand(&format).unwrap();

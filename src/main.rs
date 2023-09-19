@@ -60,6 +60,11 @@ enum BalpanCommand {
             help = "Display the elapsed time during the execution of the command."
         )]
         show_elapsed_time: bool,
+        #[clap(
+            short = 'o',
+            help = "Colorize the matched pattern in the output."
+        )]
+        colorize: bool,
         format: Option<String>,
     },
 }
@@ -95,6 +100,7 @@ fn main() {
             hide_path,
             list_of_files,
             count,
+            colorize,
             show_elapsed_time: elapsed,
         } => {
             let time = Instant::now();
@@ -105,7 +111,7 @@ fn main() {
 
             runtime.block_on(async {
                 let mut report = GrepReport::new();
-                handle_grep(file, patterns, &mut report, format, ignore_case, hide_path, list_of_files, count).await;
+                handle_grep(file, patterns, &mut report, format, ignore_case, hide_path, list_of_files, count, colorize).await;
             });
 
             if elapsed {
@@ -214,6 +220,7 @@ async fn handle_grep(
     hide_path: bool,
     list_of_files: bool,
     count: bool,
+    colorize: bool,
 ) {
     let mut pattern_tree = PatternTree::new();
     let default_patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
@@ -234,10 +241,10 @@ async fn handle_grep(
         Some(file_path) => {
             scan_specific_file(file_path, report, &mut pattern_tree, &patterns_to_search).await
         }
-        None => scan_project_directory(report, pattern_tree, patterns_to_search).await,
+        None => scan_project_directory(report, pattern_tree, patterns_to_search.clone()).await,
     }
 
-    let formatting = report.report_formatting(format, hide_path, list_of_files, count);
+    let formatting = report.report_formatting(format, hide_path, list_of_files, count, patterns_to_search, colorize);
     println!("{}", formatting);
 }
 
