@@ -23,7 +23,9 @@ enum BalpanCommand {
     Init,
     #[clap(about = "Reset environment for Balpan and removes all TODO comments")]
     Reset,
-    #[clap(about = "Searches a particular pattern of characters, and displays all lines that contain that pattern")]
+    #[clap(
+        about = "Searches a particular pattern of characters, and displays all lines that contain that pattern"
+    )]
     Grep {
         #[clap(short = 'f', long, help = "Specific file to scan")]
         file: Option<String>,
@@ -60,11 +62,13 @@ enum BalpanCommand {
             help = "Display the elapsed time during the execution of the command."
         )]
         show_elapsed_time: bool,
-        #[clap(
-            short = 'o',
-            help = "Colorize the matched pattern in the output."
-        )]
+        #[clap(short = 'o', help = "Colorize the matched pattern in the output.")]
         colorize: bool,
+        #[clap(
+            short = 'E',
+            help = "Treats pattern as an extended regular expression (ERE)."
+        )]
+        extended_regex: bool,
         format: Option<String>,
     },
 }
@@ -101,6 +105,7 @@ fn main() {
             list_of_files,
             count,
             colorize,
+            extended_regex,
             show_elapsed_time: elapsed,
         } => {
             let time = Instant::now();
@@ -111,7 +116,19 @@ fn main() {
 
             runtime.block_on(async {
                 let mut report = GrepReport::new();
-                handle_grep(file, patterns, &mut report, format, ignore_case, hide_path, list_of_files, count, colorize).await;
+                handle_grep(
+                    file,
+                    patterns,
+                    &mut report,
+                    format,
+                    ignore_case,
+                    hide_path,
+                    list_of_files,
+                    count,
+                    colorize,
+                    extended_regex,
+                )
+                .await;
             });
 
             if elapsed {
@@ -221,11 +238,17 @@ async fn handle_grep(
     list_of_files: bool,
     count: bool,
     colorize: bool,
+    extends_regex: bool,
 ) {
     let mut pattern_tree = PatternTree::new();
     let default_patterns = vec!["[TODO]".to_string(), "[DONE]".to_string()];
 
     let patterns_to_search: Vec<String>;
+
+    if extends_regex {
+        pattern_tree.ignore_case = true;
+        pattern_tree.regex_flag = true;
+    }
 
     match ignore_case {
         Some(ignore_patterns) => {
@@ -244,7 +267,14 @@ async fn handle_grep(
         None => scan_project_directory(report, pattern_tree, patterns_to_search.clone()).await,
     }
 
-    let formatting = report.report_formatting(format, hide_path, list_of_files, count, patterns_to_search, colorize);
+    let formatting = report.report_formatting(
+        format,
+        hide_path,
+        list_of_files,
+        count,
+        patterns_to_search,
+        colorize,
+    );
     println!("{}", formatting);
 }
 
