@@ -123,7 +123,7 @@ impl<'tree> Analyzer {
                         let node_symbol_with_indent = &lines[*row];
                         let node_symbol = &node_symbol_with_indent[from.to_owned()..to.to_owned()];
 
-                        if from.to_owned() == 0 && to.to_owned() == 0 {
+                        if *from == 0 && *to == 0 {
                             symbol_name_with_context.push_str("anonymous");
                         } else {
                             symbol_name_with_context.push_str(node_symbol);
@@ -212,7 +212,7 @@ impl<'tree> Analyzer {
     /// This methods collects treesitter nodes with BFS
     ///
     /// All of tree sitter nodes are ordered by non decreasing order
-    fn get_scannable_nodes<'b>(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
+    fn get_scannable_nodes(&self, tree: &'tree Tree) -> Vec<(Node<'tree>, (usize, usize, usize))> {
         let mut deq: VecDeque<Node<'tree>> = VecDeque::new();
         let scannable_node_types = self.language.scannable_node_types();
         let nested_traversable_symbols = self.language.nested_traversable_symbols();
@@ -275,6 +275,6 @@ impl<'tree> Analyzer {
             }
         }
 
-        return deq
+        deq
     }
 }
