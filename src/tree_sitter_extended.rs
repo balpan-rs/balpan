@@ -70,19 +70,22 @@ pub trait ResolveSymbol {
 
 impl ResolveSymbol for Node<'_> {
     fn identifier_range(&self) -> (usize, usize, usize) {
-        let simple_cases = vec![
-            "attribute_item", "use_declaration", "macro_invocation", 
-            "expression_statement", "foreign_mod_item"
+        let simple_cases = [
+            "attribute_item",
+            "use_declaration",
+            "macro_invocation",
+            "expression_statement",
+            "foreign_mod_item",
         ];
 
         if simple_cases.contains(&self.kind()) {
-            return (0, 0, 0)
+            return (0, 0, 0);
         }
 
         let mut node = self.child_by_field_name("name");
 
         if self.kind() == "namespace_definition" && node.is_none() {
-            return (0, 0, 0)
+            return (0, 0, 0);
         }
 
         if self.kind() == "function_definition" {
@@ -115,7 +118,7 @@ impl ResolveSymbol for Node<'_> {
             // this case handles import statement especially `export * from './compiler_facade_interface';` things.
             // I think this is not a good way to handle this case, but I don't know how to handle this case.
             if self.child_by_field_name("source").is_some() {
-                return (0, 0, 0)
+                return (0, 0, 0);
             }
 
             if let Some(child) = self.child_by_field_name("declaration") {
@@ -123,7 +126,8 @@ impl ResolveSymbol for Node<'_> {
             }
         }
 
-        let identifier_node = node.unwrap_or_else(|| panic!("`{}` is an invalid identifier node type", self.kind()));
+        let identifier_node =
+            node.unwrap_or_else(|| panic!("`{}` is an invalid identifier node type", self.kind()));
 
         let from = identifier_node.start_position().column;
         let row = identifier_node.end_position().row;

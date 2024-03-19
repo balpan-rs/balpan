@@ -92,7 +92,9 @@ impl<'tree> Analyzer {
                     let node_type = current_node.kind();
 
                     // rust specific code
-                    if node_type == "mod_item" && node_range.start_point.row == node_range.end_point.row {
+                    if node_type == "mod_item"
+                        && node_range.start_point.row == node_range.end_point.row
+                    {
                         while !pending_queue.is_empty() {
                             let decorator_line: &str = pending_queue.pop_front().unwrap();
                             writer_queue.push_back(decorator_line.to_owned());
@@ -160,18 +162,15 @@ impl<'tree> Analyzer {
 
                     if nested_traversable_symbols.contains(&node_type) {
                         let (_, from, to) = current_node.identifier_range();
-                        
+
                         let symbol: String;
-                        if from.to_owned() == 0 && to.to_owned() == 0 {
+                        if from == 0 && to == 0 {
                             symbol = "anonymous".to_string();
                         } else {
                             symbol = line[from.to_owned()..to.to_owned()].to_string();
                         }
 
-                        indentation_context.push_back((
-                            *current_node,
-                            symbol
-                        ));
+                        indentation_context.push_back((*current_node, symbol));
                         pop_node = true;
                     }
 
@@ -242,7 +241,11 @@ impl<'tree> Analyzer {
         result.to_owned()
     }
 
-    fn enqueue_child_nodes(&self, mut deq: VecDeque<Node<'tree>>, node: &Node<'tree>) -> VecDeque<Node<'tree>> {
+    fn enqueue_child_nodes(
+        &self,
+        mut deq: VecDeque<Node<'tree>>,
+        node: &Node<'tree>,
+    ) -> VecDeque<Node<'tree>> {
         let mut cursor = node.walk();
         let scannable_node_types = self.language.scannable_node_types();
         let node_type = node.kind();

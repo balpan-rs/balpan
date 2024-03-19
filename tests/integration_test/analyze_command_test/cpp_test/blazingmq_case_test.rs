@@ -161,7 +161,7 @@ fn test_templated_function_definition() {
         return d_value.apply(visitor);
     }
     "#};
-    
+
     let result = indoc! { r#"
     /// [TODO] parseCommand
     template <typename CMD>

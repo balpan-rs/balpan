@@ -1,5 +1,5 @@
-use indoc::indoc;
 use crate::integration_test::assert_analyzed_source_code;
+use indoc::indoc;
 
 #[test]
 fn test_async_function_expression() {

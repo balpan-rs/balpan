@@ -42,9 +42,7 @@ impl Language {
         match self {
             Language::Rust => "source_file",
             Language::Python => "module",
-            Language::Ruby 
-            | Language::JavaScript 
-            | Language::TypeScript  => "program",
+            Language::Ruby | Language::JavaScript | Language::TypeScript => "program",
             Language::Cpp => "translation_unit",
             _ => "",
         }
@@ -53,9 +51,7 @@ impl Language {
     pub fn decorator_node_type(&self) -> &str {
         match self {
             Language::Rust => "attribute_item",
-            Language::Python 
-            | Language::Ruby 
-            | Language::Cpp => "null",
+            Language::Python | Language::Ruby | Language::Cpp => "null",
             Language::TypeScript | Language::JavaScript => "decorator",
             _ => "",
         }
@@ -142,8 +138,7 @@ impl Language {
             Language::Python => vec!["class_definition"],
             Language::Ruby => vec!["class", "module"],
             Language::Cpp => vec!["namespace_definition", "class_specifier"],
-            Language::TypeScript 
-            | Language::JavaScript => vec![
+            Language::TypeScript | Language::JavaScript => vec![
                 "class_declaration",
                 "expression_statement",
                 "internal_module",

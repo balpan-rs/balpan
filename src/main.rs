@@ -76,7 +76,7 @@ enum BalpanCommand {
     Analyze {
         #[clap(short, long, help = "Specific file to scan")]
         pattern: Option<String>,
-    }
+    },
 }
 
 fn create_runtime() -> Runtime {
@@ -143,10 +143,12 @@ fn main() {
         }
         BalpanCommand::Analyze { pattern } => {
             match pattern {
-                Some(ref p) => if !p.starts_with('"') || !p.ends_with('"') {
-                    panic!("Invalid file path. Please include double quotes(`\"`) in the path.")
-                },
-                None => panic!("No file specified. Please specify a file path to analyze")
+                Some(ref p) => {
+                    if !p.starts_with('"') || !p.ends_with('"') {
+                        panic!("Invalid file path. Please include double quotes(`\"`) in the path.")
+                    }
+                }
+                None => panic!("No file specified. Please specify a file path to analyze"),
             }
 
             let runtime = create_runtime();

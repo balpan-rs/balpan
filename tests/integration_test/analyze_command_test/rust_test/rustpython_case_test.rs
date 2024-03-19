@@ -54,17 +54,16 @@ fn test_declaring_enum_with_stacked_attribute() {
 /// https://github.com/RustPython/RustPython/blob/bdb0c8f64557e0822f0bcfd63defbad54625c17a/vm/src/compiler.rs#L5C1-L6
 #[test]
 fn test_macro_above_use_declaration_should_be_ignored() {
-    let source_code = indoc! { r#" 
+    let source_code = indoc! { r#"
     #[cfg(feature = "rustpython-compiler")]
     use rustpython_compiler::*;"#};
 
-    let result = indoc! { r#" 
+    let result = indoc! { r#"
     #[cfg(feature = "rustpython-compiler")]
     use rustpython_compiler::*;"#};
 
     assert_analyzed_source_code(source_code, result, "rust")
-}  
-
+}
 
 /// https://github.com/RustPython/RustPython/blob/bdb0c8f64557e0822f0bcfd63defbad54625c17a/wasm/lib/src/js_module.rs#L24-L55
 #[test]

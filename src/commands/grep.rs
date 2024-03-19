@@ -140,39 +140,57 @@ impl GrepReport {
         result
     }
 
-    fn format_plain(&self, hide_path: bool, list_of_files: bool, count: bool, patterns_to_search: Vec<String>, colorize: bool) -> String {
+    fn format_plain(
+        &self,
+        hide_path: bool,
+        list_of_files: bool,
+        count: bool,
+        patterns_to_search: Vec<String>,
+        colorize: bool,
+    ) -> String {
         let mut result = String::new();
         let mut counter: usize = 0;
-    
+
         if !count {
             for dir in &self.directories {
                 let path = Path::new(&dir.name);
-    
+
                 if !hide_path {
                     dir_path_pretty(path, &mut result);
                 }
-    
+
                 for file in &dir.files {
                     if !hide_path {
                         let file_name = Path::new(&file.name);
                         let last_two = last_two(file_name);
                         result.push_str(&format!("{}\n", last_two[0]));
                     }
-    
+
                     if !list_of_files {
                         for item in &file.items {
                             if colorize {
                                 // `(?i)` is for case insensitive search
-                                let pattern = Regex::new(&format!(r"(?i){}", patterns_to_search.join(" "))).unwrap();
+                                let pattern =
+                                    Regex::new(&format!(r"(?i){}", patterns_to_search.join(" ")))
+                                        .unwrap();
                                 let text = &item.content;
 
-                                let colored_text = pattern.replace_all(text, |caps: &regex::Captures| {
-                                    format!("\x1b[31m{}\x1b[0m", &caps[0])
-                                });
+                                let colored_text = pattern
+                                    .replace_all(text, |caps: &regex::Captures| {
+                                        format!("\x1b[31m{}\x1b[0m", &caps[0])
+                                    });
 
-                                result.push_str(&format!("{}    {}", item.line, colored_text.trim_start()));
+                                result.push_str(&format!(
+                                    "{}    {}",
+                                    item.line,
+                                    colored_text.trim_start()
+                                ));
                             } else {
-                                result.push_str(&format!("{}    {}", item.line, item.content.trim_start()));
+                                result.push_str(&format!(
+                                    "{}    {}",
+                                    item.line,
+                                    item.content.trim_start()
+                                ));
                             }
                             counter += 1;
                         }
@@ -184,24 +202,39 @@ impl GrepReport {
             }
             result.push_str(&format!("\nTotal {} lines found\n", counter));
         } else {
-            counter = self.directories
+            counter = self
+                .directories
                 .iter()
-                .map(|dir| dir.files.iter().map(|file| file.items.len())
-                .sum::<usize>()).sum();
+                .map(|dir| dir.files.iter().map(|file| file.items.len()).sum::<usize>())
+                .sum();
             result = format!("Total {} lines found\n", counter);
         }
-    
+
         result
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn report_formatting(&mut self, format: Option<String>, hide_path: bool, list_of_files: bool, count: bool, patterns_to_search: Vec<String>, colorize: bool) -> String {
+    pub fn report_formatting(
+        &mut self,
+        format: Option<String>,
+        hide_path: bool,
+        list_of_files: bool,
+        count: bool,
+        patterns_to_search: Vec<String>,
+        colorize: bool,
+    ) -> String {
         let default = "plain".to_string();
         let format = format.unwrap_or(default);
 
         match format.as_str() {
             "json" => serde_json::to_string_pretty(self).unwrap(),
-            "plain" => self.format_plain(hide_path, list_of_files, count, patterns_to_search, colorize),
+            "plain" => self.format_plain(
+                hide_path,
+                list_of_files,
+                count,
+                patterns_to_search,
+                colorize,
+            ),
             // "tree" => self.format_tree(4),
             _ => {
                 let suggest = suggest_subcommand(&format).unwrap();
@@ -228,8 +261,7 @@ impl GrepReport {
 }
 
 fn last_two(path: &Path) -> Vec<&str> {
-    path
-        .iter()
+    path.iter()
         .rev()
         .take(2)
         .map(|s| s.to_str().unwrap())
