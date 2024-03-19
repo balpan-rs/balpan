@@ -2,7 +2,6 @@
 // https://github.com/helix-editor/helix/blob/master/helix-loader/src/grammar.rs
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::time::SystemTime;
 use std::{
     collections::HashSet,
@@ -10,6 +9,7 @@ use std::{
     process::Command,
     sync::mpsc::channel,
 };
+use std::{fs, thread};
 use tempfile::TempPath;
 use tree_sitter::Language;
 
@@ -218,22 +218,26 @@ where
     F: Fn(GrammarConfiguration) -> Result<Res> + Send + 'static + Clone,
     Res: Send + 'static,
 {
-    let pool = threadpool::Builder::new().build();
     let (tx, rx) = channel();
+    let mut handles = Vec::new();
 
     for grammar in grammars {
-        let tx = tx.clone();
-        let job = job.clone();
+        let tx = tx.to_owned();
+        let job = job.to_owned();
 
-        pool.execute(move || {
-            // Ignore any SendErrors, if any job in another thread has encountered an
-            // error the Receiver will be closed causing this send to fail.
-            let _ = tx.send((grammar.grammar_id.clone(), job(grammar)));
+        let handle = thread::spawn(move || {
+            let result = (grammar.grammar_id.clone(), job(grammar));
+            let _ = tx.send(result);
         });
+
+        handles.push(handle);
     }
 
-    drop(tx);
+    for handle in handles {
+        let _ = handle.join();
+    }
 
+    drop(tx); // not necessary, but makes it explicit that we're done with the sender
     rx.iter().collect()
 }
 
