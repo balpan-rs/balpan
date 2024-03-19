@@ -90,5 +90,5 @@ fn test_typescript_functions() {
         setContextFlag(val, NodeFlags.AwaitContext);
     }"#};
 
-    assert_analyzed_source_code(source_code, expected, "typescript")    
+    assert_analyzed_source_code(source_code, expected, "typescript")
 }
